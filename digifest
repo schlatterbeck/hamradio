@@ -1,0 +1,24 @@
+#!/usr/bin/python
+
+""" Digifest contest configuration
+    see http://www.rigexpert.com/index?f=digifest
+"""
+
+import sys
+import adif
+
+adif = adif.ADIF (sys.stdin)
+cs = 'OE3RSU'
+d = \
+    [ ('START-OF-LOG',     '2.0')
+    , ('ARRL-SECTION',     'DX')
+    , ('CALLSIGN',         cs)
+    , ('CATEGORY',         'SINGLE-OP ALL LOW 8-HOURS')
+    , ('CATEGORY-OVERLAY', '')
+    , ('CLAIMED-SCORE',    0)
+    , ('CONTEST',          'DIGIFEST')
+    , ('NAME',             'Ralf Schlatterbeck')
+    , ('ADDRESS',          'Reichergasse 131, A-3411 Weidling, Austria')
+    , ('OPERATORS',        cs)
+    ]
+print adif.as_cabrillo (callsign = cs, cabrillo = d)

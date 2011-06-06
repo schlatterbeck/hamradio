@@ -169,7 +169,7 @@ class ADIF (ADIF_Parse) :
     def as_cabrillo \
         (self, fields = None, callsign = None, cabrillo = {}, **kw) :
         s = []
-        for k, v in cabrillo.iteritems () :
+        for k, v in cabrillo :
             s.append ('%s: %s' % (k.upper (), v))
         for k, v in kw.iteritems () :
             s.append ('%s: %s' % (k.upper (), v))
