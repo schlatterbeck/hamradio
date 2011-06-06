@@ -79,6 +79,10 @@ class ADIF_Parse (autosuper) :
                 assert (0)
             c = self.fd.read (1)
     # end def get_tag
+
+    def __getitem__ (self, name) :
+        return self.dict [name]
+    # end def __getitem__
 # end class ADIF_Parse
 
 class ADIF_Record (ADIF_Parse) :
@@ -86,8 +90,6 @@ class ADIF_Record (ADIF_Parse) :
         Common fields: BAND, CALL, FREQ, MODE, QSO_DATE, RST_RCVD,
         RST_SENT, TIME_OFF, TIME_ON, GRIDSQUARE
     """
-
-    modemap = {}
 
     cabrillo_fields  = \
         [ 'FRQINT:5'
@@ -101,16 +103,17 @@ class ADIF_Record (ADIF_Parse) :
         , 'GRIDSQUARE:4'
         ]
 
-    def __init__ (self, fd, lineno) :
+    def __init__ (self, adif, fd, lineno) :
         """ consume one record from fd """
         self.__super.__init__ (fd, lineno)
-        self.fd = fd
+        self.adif = adif
+        self.fd   = fd
         self.get_tags ('EOR')
         if not self.dict :
             raise ADIF_EOF
     # end def __init__
 
-    def as_cabrillo (self, fields = None, callsign = None) :
+    def as_cabrillo (self, fields = None) :
         x = fields or self.cabrillo_fields
         fields = []
         for f in x :
@@ -119,12 +122,63 @@ class ADIF_Record (ADIF_Parse) :
         r = ['QSO:']
         for f, l in fields :
             fmt = '%-' + str (l) + '.' + str (l) + 's'
-            if f == 'OWN_CALL' :
-                if callsign :
-                    r.append (fmt % callsign)
-                continue
             r.append (fmt % self [f])
         return ' '.join (r)
+    # end def as_cabrillo
+
+    def __getitem__ (self, name) :
+        if name == 'FRQINT' :
+            return str (int (float (self.dict ['FREQ']) * 1000 + 0.5))
+        elif name == 'MODE' and self.adif.modemap :
+            return self.adif.modemap.get \
+                ( self.dict ['MODE']
+                , self.adif.modemap.get ('default', self.dict ['MODE'])
+                )
+        elif name == 'ISODATE' :
+            dt = datetime.strptime (self.dict ['QSO_DATE'], '%Y%m%d')
+            return dt.strftime ('%Y-%m-%d')
+        try :
+            return self.__super.__getitem__ (name)
+        except KeyError :
+            return self.adif [name]
+    # end def __getitem__
+# end class ADIF_Record
+
+class ADIF (ADIF_Parse) :
+
+    modemap = {}
+
+    def __init__ (self, fd, lineno = 1, callsign = None, ** kw) :
+        self.__super.__init__ (fd, lineno)
+        self.callsign = callsign
+        self.dict.update (kw)
+        if callsign :
+            self.dict ['OWN_CALL'] = callsign
+        self.records  = []
+        l = fd.readline ()
+        f, fn = l.split (': ')
+        if f != 'File' :
+            raise ADIF_Syntax_Error, "File header not found", self.lineno
+        self.filename = fn.rstrip ('\r\n')
+        self.lineno += 1
+        self.get_tags ('EOH')
+        while (1) :
+            try :
+                self.records.append (ADIF_Record (self, fd, self.lineno))
+            except ADIF_EOF :
+                break
+    # end def __init__
+
+    def as_cabrillo (self, fields = None, cabrillo = (), **kw) :
+        s = []
+        for k, v in cabrillo :
+            s.append ('%s: %s' % (k.upper (), v))
+        for k, v in kw.iteritems () :
+            s.append ('%s: %s' % (k.upper (), v))
+        for r in self.records :
+            s.append (r.as_cabrillo (fields))
+        s.append ('END_OF_LOG:')
+        return '\n'.join (s)
     # end def as_cabrillo
 
     def set_modemap (self, modemap) :
@@ -135,49 +189,6 @@ class ADIF_Record (ADIF_Parse) :
         self.modemap = modemap
     # end def set_modemap
 
-    def __getitem__ (self, name) :
-        if name == 'FRQINT' :
-            return str (int (float (self.dict ['FREQ']) * 1000 + 0.5))
-        elif name == 'MODE' and self.modemap :
-            return self.modemap.get \
-                (self.MODE, self.modemap.get ('default', self.MODE))
-        elif name == 'ISODATE' :
-            dt = datetime.strptime (self.dict ['QSO_DATE'], '%Y%m%d')
-            return dt.strftime ('%Y-%m-%d')
-        return self.dict [name]
-    # end def __getitem__
-# end class ADIF_Record
-
-class ADIF (ADIF_Parse) :
-    def __init__ (self, fd) :
-        self.__super.__init__ (fd)
-        self.records = []
-        l = fd.readline ()
-        f, fn = l.split (': ')
-        if f != 'File' :
-            raise ADIF_Syntax_Error, "File header not found", self.lineno
-        self.filename = fn.rstrip ('\r\n')
-        self.lineno += 1
-        self.get_tags ('EOH')
-        while (1) :
-            try :
-                self.records.append (ADIF_Record (fd, self.lineno))
-            except ADIF_EOF :
-                break
-    # end def __init__
-
-    def as_cabrillo \
-        (self, fields = None, callsign = None, cabrillo = {}, **kw) :
-        s = []
-        for k, v in cabrillo :
-            s.append ('%s: %s' % (k.upper (), v))
-        for k, v in kw.iteritems () :
-            s.append ('%s: %s' % (k.upper (), v))
-        for r in self.records :
-            s.append (r.as_cabrillo (fields, callsign))
-        s.append ('END_OF_LOG:')
-        return '\n'.join (s)
-    # end def as_cabrillo
 # end class ADIF
 
 if __name__ == '__main__' :

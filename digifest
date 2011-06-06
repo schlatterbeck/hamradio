@@ -7,18 +7,34 @@
 import sys
 import adif
 
-adif = adif.ADIF (sys.stdin)
 cs = 'OE3RSU'
+mm = {'PSK63' : 'PK', 'RTTY' : 'RY'}
+adif = adif.ADIF (sys.stdin, callsign = cs, OWN_GRID = 'JN88')
+adif.set_modemap (mm)
+fields  = \
+    [ 'FRQINT:5'
+    , 'MODE:2'
+    , 'ISODATE:10'
+    , 'TIME_OFF:4'
+    , 'OWN_CALL:13'
+    , 'OWN_GRID:4'
+    , 'RST_SENT:3'
+    , 'CALL:13'
+    , 'RST_RCVD:3'
+    , 'GRIDSQUARE:4'
+    ]
 d = \
     [ ('START-OF-LOG',     '2.0')
     , ('ARRL-SECTION',     'DX')
     , ('CALLSIGN',         cs)
     , ('CATEGORY',         'SINGLE-OP ALL LOW 8-HOURS')
     , ('CATEGORY-OVERLAY', '')
+    , ('CATEGORY-POWER',   'QRP')
     , ('CLAIMED-SCORE',    0)
     , ('CONTEST',          'DIGIFEST')
     , ('NAME',             'Ralf Schlatterbeck')
+    , ('EMAIL',            'oe3rsu@oevsv.at')
     , ('ADDRESS',          'Reichergasse 131, A-3411 Weidling, Austria')
     , ('OPERATORS',        cs)
     ]
-print adif.as_cabrillo (callsign = cs, cabrillo = d)
+print adif.as_cabrillo (cabrillo = d, fields = fields)
