@@ -83,6 +83,11 @@ class ADIF_Parse (autosuper) :
     def __getitem__ (self, name) :
         return self.dict [name]
     # end def __getitem__
+
+    def __contains__ (self, name) :
+        return name in self.dict
+    # end def __contains__
+    has_key = __contains__
 # end class ADIF_Parse
 
 class ADIF_Record (ADIF_Parse) :
@@ -142,6 +147,15 @@ class ADIF_Record (ADIF_Parse) :
         except KeyError :
             return self.adif [name]
     # end def __getitem__
+
+    def __contains__ (self, name) :
+        if name in ('FRQINT', 'ISODATE') :
+            return True
+        if name == 'MODE' and self.adif.modemap :
+            return True
+        return self.__super.has_key (name) or self.adif.has_key (name)
+    # end def __contains__
+    has_key = __contains__
 # end class ADIF_Record
 
 class ADIF (ADIF_Parse) :
