@@ -63,10 +63,19 @@ def main () :
                 de += date.Interval ('1h')
         assert (de >= ds)
         pp = ';'.join ((str (de), str (de)))
-        dr = db.qso.filter (None, dict (qso_end = pp))
+        dr = db.qso.filter (None, dict (qso_end = pp, owner = call))
         if dr :
-            print "Existing record:", de
-            continue
+            dupe = False
+            for d in dr :
+                q = db.qso.getnode (d)
+                if (q.call != record ['CALL']) :
+                    print "Same end-time but different calls: %s %s %s" % \
+                        (de, q.call, record ['CALL'])
+                else :
+                    print "Existing record:", de
+                    dupe = True
+            if dupe :
+                continue
         create_dict = dict (qso_start = ds, qso_end = de, owner = call)
         if 'BAND' in record :
             b = db.ham_band.lookup (record ['BAND'])
