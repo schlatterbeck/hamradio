@@ -49,6 +49,7 @@ def main () :
         f = sys.stdin
     adif  = ADIF (f)
     count = 0
+    lotw  = db.qsl_type.lookup ('LOTW')
     for record in adif.records :
         aprops = set (('QSO_DATE', 'TIME_ON', 'TIME_OFF'))
         ds = date_cvt (record ['QSO_DATE'], record ['TIME_ON'])
@@ -75,16 +76,35 @@ def main () :
             m = db.ham_mode.lookup (record ['MODE'])
             create_dict ['mode'] = m
             aprops.add ('MODE')
-        if 'NOTE' in record :
-            m = db.message.create (content = uni (record ['NOTE']))
+        if 'NOTES' in record :
+            m = db.msg.create (content = uni (record ['NOTES']))
             create_dict ['messages'] = [m]
-            aprops.add ('NOTE')
+            aprops.add ('NOTES')
+        if 'QSLRDATE' in record :
+            qslrdate = record ['QSLRDATE']
+            aprops.add ('QSLRDATE')
+        if 'QSLSDATE' in record :
+            qslsdate = record ['QSLSDATE']
+            aprops.add ('QSLSDATE')
         for p in db.qso.properties :
             ap = p.upper ()
             if ap not in aprops and ap in record :
                 aprops.add (ap)
                 create_dict [p] = uni (record [ap])
-        db.qso.create (**create_dict)
+        missing_fields = set (record.dict.iterkeys ()) - aprops
+        if missing_fields :
+            raise RuntimeError, "Missing fields: %s" % str (missing_fields)
+        qso = db.qso.create (**create_dict)
+        qsl = None
+        if 'QSLRDATE' in aprops :
+            dr = date_cvt (qslrdate)
+            qsl = db.qsl.create (qsl_type = lotw, qso = qso, date_recv = dr)
+        if 'QSLSDATE' in aprops :
+            ds = date_cvt (qslsdate)
+            if not qsl :
+                print "Warning: no recv qsl: %s" % de
+            else :
+                db.qsl.set (qsl, date_sent = ds)
         count += 1
     db.commit ()
     print "Inserted %d records" % count
