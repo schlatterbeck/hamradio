@@ -27,7 +27,7 @@ d = \
     [ ('START-OF-LOG',     '2.0')
     , ('ARRL-SECTION',     'DX')
     , ('CALLSIGN',         cs)
-    , ('CATEGORY',         'SINGLE-OP ALL LOW 8-HOURS')
+    , ('CATEGORY',         'SINGLE-OP ALL LOW 8-HOUR')
     , ('CATEGORY-OVERLAY', '')
     , ('CATEGORY-POWER',   'QRP')
     , ('CLAIMED-SCORE',    0)
