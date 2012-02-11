@@ -71,7 +71,6 @@ def main () :
     for record in adif.records :
         ds = date_cvt (record ['QSO_DATE'], record ['TIME_ON'])
         if 'QSO_DATE_OFF' in record :
-            aprops.add ('QSO_DATE_OFF')
             de = date_cvt (record ['QSO_DATE_OFF'], record ['TIME_OFF'])
         else :
             de = date_cvt (record ['QSO_DATE'], record ['TIME_OFF'])
