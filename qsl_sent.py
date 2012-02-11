@@ -80,8 +80,11 @@ def main () :
         assert (de >= ds)
         pp = ';'.join ((str (de), str (de)))
         dr = db.qso.filter (None, dict (qso_end = pp, call = record ['CALL']))
+        assert (len (dr) <= 1)
+        if not dr :
+            print "No QSO found for %s ending %s" % (record ['CALL'], str (de))
+            continue
         qso = dr [0]
-        assert (len (dr) == 1)
         qsl = db.qsl.filter (None, dict (qso = qso, qsl_type = type))
         assert (len (qsl) <= 1)
         if qsl :
