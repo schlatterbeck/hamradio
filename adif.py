@@ -2,6 +2,7 @@
 
 from datetime         import datetime
 from rsclib.autosuper import autosuper
+from gzip             import GzipFile
 
 class ADIF_Syntax_Error (RuntimeError)  : pass
 class ADIF_EOF          (StandardError) : pass
@@ -57,11 +58,18 @@ class ADIF_Parse (autosuper) :
                     tag.append (c)
             elif state == 'length' :
                 if c == '>' :
+                    v = ''.join (value)
                     try :
-                        count = int (''.join (value))
+                        count = int (v)
                     except ValueError :
-                        raise ADIF_Syntax_Error, '%s: Invalid count: %s' \
-                            % (self.lineno, ''.join (value))
+                        c1, c2 = v.split (':', 1)
+                        # TQ8 has some weirdness for SIGN_LOTW_V1.0 tag
+                        try :
+                            count = int (c1)
+                            c2    = int (c2)
+                        except ValueError :
+                            raise ADIF_Syntax_Error, '%s: Invalid count: %s' \
+                                % (self.lineno, ''.join (value))
                     value = []
                     state = 'value'
                 else :
@@ -108,12 +116,13 @@ class ADIF_Record (ADIF_Parse) :
         , 'GRIDSQUARE:4'
         ]
 
-    def __init__ (self, adif, fd, lineno) :
+    def __init__ (self, adif, fd, lineno, end_tag = 'EOR') :
         """ consume one record from fd """
         self.__super.__init__ (fd, lineno)
-        self.adif = adif
-        self.fd   = fd
-        self.get_tags ('EOR')
+        self.end_tag  = end_tag
+        self.adif     = adif
+        self.fd       = fd
+        self.get_tags (self.end_tag)
         if not self.dict :
             raise ADIF_EOF
     # end def __init__
@@ -204,6 +213,25 @@ class ADIF (ADIF_Parse) :
     # end def set_modemap
 
 # end class ADIF
+
+class TQ8 (ADIF_Parse) :
+    def __init__ (self, fd, lineno = 1, ** kw) :
+        fd = GzipFile (mode = 'r', fileobj = fd)
+        self.__super.__init__ (fd, lineno)
+        self.get_tags ('eor')
+        assert (self.dict ['Rec_Type'] == 'tCERT')
+        self.get_tags ('eor')
+        assert (self.dict ['Rec_Type'] == 'tSTATION')
+        self.callsign = self.dict ['CALL']
+        self.records  = []
+        while (1) :
+            try :
+                self.records.append \
+                    (ADIF_Record (self, fd, self.lineno, end_tag = 'eor'))
+            except ADIF_EOF :
+                break
+    # end def __init__
+# end class TQ8
 
 if __name__ == '__main__' :
     import sys
