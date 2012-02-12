@@ -2,7 +2,7 @@ import sys
 import os
 from optparse import OptionParser
 from datetime import datetime
-from adif     import ADIF
+from adif     import ADIF, TQ8
 from roundup  import date
 from roundup  import instance
 
@@ -15,6 +15,12 @@ def date_cvt (d, t = '0000') :
 def main () :
     global uni
     parser = OptionParser ()
+    parser.add_option \
+        ( "-8", "--tq8"
+        , dest    = "tq8"
+        , help    = "tq8 file to import"
+        , default = None
+        )
     parser.add_option \
         ( "-a", "--adif"
         , dest    = "adif"
@@ -62,27 +68,49 @@ def main () :
         parser.error ("Either sent or recv timestamp must be given")
         sys.exit (1)
 
-    if opt.adif :
+    if opt.tq8 :
+        f = open (opt.tq8, 'r')
+    elif opt.adif :
         f = open (opt.adif, 'r')
     else :
         f = sys.stdin
-    adif  = ADIF (f)
+    if opt.tq8 :
+        adif = TQ8 (f)
+    else :
+        adif = ADIF (f)
     ccount = ucount = 0
     for record in adif.records :
-        ds = date_cvt (record ['QSO_DATE'], record ['TIME_ON'])
-        if 'QSO_DATE_OFF' in record :
-            de = date_cvt (record ['QSO_DATE_OFF'], record ['TIME_OFF'])
+        if 'TIME_ON' not in record :
+            ds = date.Date \
+                ('.'.join ((record ['QSO_DATE'], record ['QSO_TIME'][:-1])))
         else :
-            de = date_cvt (record ['QSO_DATE'], record ['TIME_OFF'])
-            if de < ds :
-                print "time correction"
-                de += date.Interval ('1h')
-        assert (de >= ds)
-        pp = ';'.join ((str (de), str (de)))
-        dr = db.qso.filter (None, dict (qso_end = pp, call = record ['CALL']))
+            ds = date_cvt (record ['QSO_DATE'], record ['TIME_ON'])
+        if 'TIME_OFF' in record :
+            if 'QSO_DATE_OFF' in record :
+                de = date_cvt (record ['QSO_DATE_OFF'], record ['TIME_OFF'])
+            else :
+                de = date_cvt (record ['QSO_DATE'], record ['TIME_OFF'])
+                if de < ds :
+                    print "time correction"
+                    de += date.Interval ('1h')
+            assert (de >= ds)
+        else :
+            de = None
+        call = record ['CALL']
+        if de :
+            pp = ';'.join ((str (de), str (de)))
+            dr = db.qso.filter (None, dict (qso_end = pp, call = call))
+        else :
+            pp = ';'.join ((str (ds), str (ds)))
+            dr = db.qso.filter (None, dict (qso_start = pp, call = call))
         assert (len (dr) <= 1)
         if not dr :
-            print "No QSO found for %s ending %s" % (record ['CALL'], str (de))
+            x = 'ending'
+            d = de
+            if not de :
+                x = 'starting'
+                d = ds
+            print "No QSO found for %s %s %s" % (record ['CALL'], x, str (d))
             continue
         qso = dr [0]
         qsl = db.qsl.filter (None, dict (qso = qso, qsl_type = type))
