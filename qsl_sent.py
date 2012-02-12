@@ -16,21 +16,27 @@ def main () :
     global uni
     parser = OptionParser ()
     parser.add_option \
+        ( "-a", "--adif"
+        , dest    = "adif"
+        , help    = "ADIF file to import (default: read from stdin)"
+        , default = None
+        )
+    parser.add_option \
         ( "-d", "--database-directory"
         , dest    = "database_directory"
         , help    = "Directory of the roundup installation"
         , default = '.'
         )
     parser.add_option \
-        ( "-u", "--username"
-        , dest    = "username"
-        , help    = "Username of hamlog database"
-        , default = 'admin'
+        ( "-r", "--qsl-recv"
+        , dest    = "date_recv"
+        , help    = "Timestamp when QSL was received"
+        , default = None
         )
     parser.add_option \
-        ( "-a", "--adif"
-        , dest    = "adif"
-        , help    = "ADIF file to import (default: read from stdin)"
+        ( "-s", "--qsl-sent"
+        , dest    = "date_sent"
+        , help    = "Timestamp when QSL was sent"
         , default = None
         )
     parser.add_option \
@@ -40,16 +46,10 @@ def main () :
         , default = 'eQSL'
         )
     parser.add_option \
-        ( "-s", "--qsl-sent"
-        , dest    = "date_sent"
-        , help    = "Timestamp when QSL was sent"
-        , default = None
-        )
-    parser.add_option \
-        ( "-r", "--qsl-recv"
-        , dest    = "date_recv"
-        , help    = "Timestamp when QSL was received"
-        , default = None
+        ( "-u", "--username"
+        , dest    = "username"
+        , help    = "Username of hamlog database"
+        , default = 'admin'
         )
     opt, args = parser.parse_args ()
     sys.path.insert (1, os.path.join (opt.database_directory, 'lib'))
