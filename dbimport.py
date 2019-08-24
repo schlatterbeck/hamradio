@@ -254,6 +254,9 @@ class ADIF_Uploader (object) :
                         % (record ['station_callsign'], self.call ['call'])
                         )
                 aprops.add ('station_callsign')
+            # Ignore srx field (contest serial number)
+            if 'srx' in record :
+                aprops.add ('srx')
             # Get qso1 for schema
             schema_qso = self.get ('qso/1')
             schema_qso = list \
