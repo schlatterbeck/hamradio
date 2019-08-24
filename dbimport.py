@@ -42,6 +42,26 @@ class ADIF_Uploader (object) :
         self.dryrun = ''
         if args.dry_run :
             self.dryrun = '[dry run] '
+        self.antenna = {}
+        for a in args.antenna :
+            k, v = a.split (':', 1)
+            self.antenna [k] = v
+        for band in self.antenna :
+            a = self.antenna [band]
+            v = self.get ('antenna?name=%s' % quote_plus (a))
+            collection = v ['data']['collection']
+            if len (collection) == 0 :
+                raise ValueError ('Invalid antenna: %s' % a)
+            if len (collection) > 1 :
+                raise ValueError ('No exact match for antenna: %s' % a)
+            antenna = collection [0]['id']
+            v = self.get ('ham_band?name=%s' % quote_plus (band))
+            collection = v ['data']['collection']
+            if len (collection) == 0 :
+                raise ValueError ('Invalid band: %s' % band)
+            if len (collection) > 1 :
+                raise ValueError ('No exact match for band: %s' % band)
+            self.antenna [band] = antenna
         call = self.get \
             ('ham_call?name=%s&@fields=name,call,gridsquare' % args.call)
         collection = call ['data']['collection']
@@ -190,6 +210,8 @@ class ADIF_Uploader (object) :
                 (qso_start = ds, qso_end = de, owner = self.id_call)
             if 'band' in record :
                 create_dict ['band'] = record ['band']
+                if record ['band'] in self.antenna :
+                    create_dict ['antenna'] = self.antenna [record ['band']]
                 aprops.add ('band')
             if 'mode' in record :
                 create_dict ['mode'] = record ['mode']
@@ -274,6 +296,14 @@ def main () :
     cmd.add_argument \
         ( "adif"
         , help    = "ADIF file to import"
+        )
+    cmd.add_argument \
+        ( "-a", "--antenna"
+        , help    = "Antenna to use for band, colon separated "
+                    "band:antenna, later values override earlier values, "
+                    "default=%(default)s"
+        , action  = 'append'
+        , default = ['20m:Magnetic Loop D=98cm', '40m:Magnetic Loop D=3.5m']
         )
     cmd.add_argument \
         ( "-c", "--call"
