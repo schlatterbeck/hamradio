@@ -236,15 +236,6 @@ class ADIF_Uploader (object) :
             if 'qslsdate' in record :
                 qslsdate = record ['qslsdate']
                 aprops.add ('qslsdate')
-            if 'my_gridsquare' in record :
-                if  (  self.call ['gridsquare'].lower ()
-                    != record ['my_gridsquare'].lower ()
-                    ) :
-                    raise ValueError \
-                        ( "Invalid grid %s, expected %s"
-                        % (record ['my_gridsquare'], self.call % ['gridsquare'])
-                        )
-                aprops.add ('my_gridsquare')
             if 'station_callsign' in record :
                 if  (  self.call ['call'].lower ()
                     != record ['station_callsign'].lower ()
@@ -254,6 +245,15 @@ class ADIF_Uploader (object) :
                         % (record ['station_callsign'], self.call ['call'])
                         )
                 aprops.add ('station_callsign')
+            if 'my_gridsquare' in record :
+                if  (  self.call ['gridsquare'].lower ()
+                    != record ['my_gridsquare'].lower ()
+                    ) :
+                    raise ValueError \
+                        ( "Invalid grid %s, expected %s"
+                        % (record ['my_gridsquare'], self.call ['gridsquare'])
+                        )
+                aprops.add ('my_gridsquare')
             # Ignore srx field (contest serial number)
             if 'srx' in record :
                 aprops.add ('srx')
