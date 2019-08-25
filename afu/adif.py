@@ -2,11 +2,12 @@
 
 from __future__ import print_function
 
+import sys
 import io
 from datetime         import datetime
 from rsclib.autosuper import autosuper
 from gzip             import GzipFile
-
+from argparse         import ArgumentParser
 
 class ADIF_Syntax_Error (RuntimeError)  : pass
 class ADIF_EOF          (Exception) : pass
@@ -92,6 +93,7 @@ class ADIF_Parse (autosuper) :
         while (c) :
             self.unftag.append (c)
             if state == 'start' or state == 'skip' :
+                c = c.lower ()
                 # Be tolerant and allow white space where we expect a tag
                 if c.isspace () :
                     if c == '\n' :
@@ -102,6 +104,7 @@ class ADIF_Parse (autosuper) :
                     raise ADIF_Syntax_Error \
                         ('%s: Expected tag start, got %s' % (self.lineno, c))
             elif state == 'tag' :
+                c = c.lower ()
                 if c == '>' or c == ':' :
                     if len (tag) == 0 :
                         raise ADIF_Syntax_Error ('%s: Empty tag' % self.lineno)
@@ -209,6 +212,13 @@ class ADIF_Record (ADIF_Parse) :
         return ' '.join (r)
     # end def as_cabrillo
 
+    def get_date (self) :
+        """ Return the date of the record computed from QSO_DATE and
+            TIME_ON.
+        """
+        return self.date_cvt (self.qso_date, self.time_on)
+    # end def get_date
+
     def __getitem__ (self, name) :
         n = name.lower ()
         if n == 'frqint' :
@@ -228,6 +238,12 @@ class ADIF_Record (ADIF_Parse) :
         except KeyError :
             return self.adif [n]
     # end def __getitem__
+
+    def __getattr__ (self, name) :
+        try :
+            return self [name]
+        except IndexError as msg :
+            raise AttributeError (str (msg))
 
     def __contains__ (self, name) :
         n = name.lower ()
@@ -275,12 +291,13 @@ class ADIF (ADIF_Parse) :
                 c1 = None
             except ADIF_EOF :
                 break
-        last = self.records [-1]
-        if len (last.dict) == 1 and 'eof' in last.dict.keys () [0] :
-            key = last.dict.keys () [0]
-            assert len (last [key]) == 0
-            self.eofmark = key
-            del self.records [-1]
+        if self.records :
+            last = self.records [-1]
+            if len (last.dict) == 1 and 'eof' in last.dict.keys () [0] :
+                key = last.dict.keys () [0]
+                assert len (last [key]) == 0
+                self.eofmark = key
+                del self.records [-1]
     # end def __init__
 
     def as_cabrillo (self, fields = None, cabrillo = (), **kw) :
@@ -305,7 +322,7 @@ class ADIF (ADIF_Parse) :
 
     def __str__ (self) :
         r = []
-        for rec in self.records :
+        for rec in sorted (self.records, key = lambda x: x.get_date ()) :
             r.append (str (rec))
         return '\n\n'.join (r)
     # end def __str__
@@ -333,19 +350,42 @@ class TQ8 (ADIF_Parse) :
     # end def __init__
 # end class TQ8
 
-if __name__ == '__main__' :
-    import sys
-    f = sys.stdin
-    if len (sys.argv) > 1 :
-        f = io.open (sys.argv [1], 'r', encoding = 'utf-8')
-    adif = ADIF (f, callsign = 'OE3RSU')
+def main () :
+    cmd = ArgumentParser ()
+    cmd.add_argument \
+        ( "adif"
+        , help    = "ADIF file to import"
+        , nargs   = '?'
+        )
+    cmd.add_argument \
+        ( "-e", "--encoding"
+        , help    = "Encoding of ADIF file, default=%(default)s"
+        , default = 'utf-8'
+        )
+    cmd.add_argument \
+        ( "-c", "--call"
+        , help    = "Location name to use for some outputs"
+        , default = 'OE3RSU'
+        )
+    args = cmd.parse_args ()
+    if args.adif :
+        f = io.open (args.adif, 'r', encoding = args.encoding)
+    else :
+        f = sys.stdin
+    adif = ADIF (f, callsign = args.call)
+    # For cabrillog output, not currently used
     d = {'START-OF-LOG' : '2.0'}
     print (adif.header)
     for k in adif.head_tags :
         print ('%18s: %s' % (k, adif.head_tags [k]))
     print ("Got %s records" % len (adif.records))
-    print (adif.records [-1])
-    #print (adif)
-    #print (adif.as_cabrillo (cabrillo = d))
     if adif.eofmark :
         print ('Got non-standard EOF-mark: %s' % adif.eofmark)
+    print ('<EOH>')
+    #print (adif.records [-1])
+    print (adif)
+    #print (adif.as_cabrillo (cabrillo = d))
+# end def main
+
+if __name__ == '__main__' :
+    main ()
