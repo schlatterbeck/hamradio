@@ -18,10 +18,12 @@ class ADIF_Parse (autosuper) :
 
     def __init__ (self, fd, lineno = 1) :
         self.__super.__init__ ()
-        self.fd     = fd
-        self.lineno = lineno
-        self.dict   = {}
-        self.header = None
+        self.fd        = fd
+        self.lineno    = lineno
+        self.dict      = {}
+        self.header    = None
+        self.unftag    = []
+        self.head_tags = {}
     # end def __init__
 
     @classmethod
@@ -37,11 +39,9 @@ class ADIF_Parse (autosuper) :
     # end def date_cvt
 
     def get_header (self, endtag = 'eoh', firstchar = None) :
-        endtag = (endtag + '>').lower ()
+        endtag = endtag.lower ()
         head   = []
-        tag    = []
         state  = 'text'
-        tagctr = 0
         if firstchar is not None :
             c = firstchar
         else :
@@ -49,23 +49,18 @@ class ADIF_Parse (autosuper) :
         while (c) :
             if state == 'text' :
                 if c == '<' :
-                    state = 'tag'
-                    tag = ['<']
+                    try :
+                        for k, v in self.get_tag (firstchar = c, stop = True) :
+                            if k == endtag :
+                                self.header = ''.join (head).strip ()
+                                return
+                            else :
+                                self.head_tags [k] = v
+                    except ADIF_Syntax_Error :
+                        self.head.extend (self.unftag)
+                        self.unftag = []
                 else :
                     head.append (c)
-            elif state == 'tag' :
-                if c.lower () == endtag [tagctr] :
-                    tag.append (c)
-                    tagctr += 1
-                    if tagctr >= len (endtag) :
-                        self.header = ''.join (head)
-                        return
-                else :
-                    head.extend (tag)
-                    head.append (c)
-                    tag = []
-                    tagctr = 0
-                    state = 'text'
             else :
                 assert 0
             c = self.fd.read (1)
@@ -83,17 +78,19 @@ class ADIF_Parse (autosuper) :
                 self.dict [k.lower ()] = v
     # end def get_tags
 
-    def get_tag (self, firstchar = None) :
+    def get_tag (self, firstchar = None, stop = False) :
         count  = 0
         tag    = []
         value  = []
         state  = 'start'
+        self.unftag = []
 
         if firstchar is not None :
             c = firstchar
         else :
             c = self.fd.read (1)
         while (c) :
+            self.unftag.append (c)
             if state == 'start' or state == 'skip' :
                 # Be tolerant and allow white space where we expect a tag
                 if c.isspace () :
@@ -115,6 +112,8 @@ class ADIF_Parse (autosuper) :
                         tag   = []
                         value = []
                         state = 'start'
+                        if stop :
+                            raise StopIteration ()
                 else :
                     tag.append (c)
             elif state == 'length' :
@@ -147,6 +146,9 @@ class ADIF_Parse (autosuper) :
                     tag   = []
                     value = []
                     state = 'skip'
+                    if stop :
+                        state = 'start'
+                        raise StopIteration ()
             else :
                 assert (0)
             c = self.fd.read (1)
@@ -236,6 +238,18 @@ class ADIF_Record (ADIF_Parse) :
         return self.__super.has_key (n) or self.adif.has_key (n)
     # end def __contains__
     has_key = __contains__
+
+    def __str__ (self) :
+        r = []
+        for k in sorted (self.dict) :
+            v = self [k]
+            r.append ('<%s:%d>%s' % (k, len (v), v))
+        r.append ('<eor>')
+        return '\n'.join (r)
+    # end def __str__
+    __unicode__ = __str__
+    __repr__ = __str__
+
 # end class ADIF_Record
 
 class ADIF (ADIF_Parse) :
@@ -244,6 +258,7 @@ class ADIF (ADIF_Parse) :
 
     def __init__ (self, fd, lineno = 1, callsign = None, ** kw) :
         self.__super.__init__ (fd, lineno)
+        self.eofmark  = None
         self.callsign = callsign
         self.dict.update (kw)
         if callsign :
@@ -260,6 +275,12 @@ class ADIF (ADIF_Parse) :
                 c1 = None
             except ADIF_EOF :
                 break
+        last = self.records [-1]
+        if len (last.dict) == 1 and 'eof' in last.dict.keys () [0] :
+            key = last.dict.keys () [0]
+            assert len (last [key]) == 0
+            self.eofmark = key
+            del self.records [-1]
     # end def __init__
 
     def as_cabrillo (self, fields = None, cabrillo = (), **kw) :
@@ -281,6 +302,15 @@ class ADIF (ADIF_Parse) :
         """
         self.modemap = modemap
     # end def set_modemap
+
+    def __str__ (self) :
+        r = []
+        for rec in self.records :
+            r.append (str (rec))
+        return '\n\n'.join (r)
+    # end def __str__
+    __unicode__ = __str__
+    __repr__ = __str__
 
 # end class ADIF
 
@@ -311,4 +341,11 @@ if __name__ == '__main__' :
     adif = ADIF (f, callsign = 'OE3RSU')
     d = {'START-OF-LOG' : '2.0'}
     print (adif.header)
+    for k in adif.head_tags :
+        print ('%18s: %s' % (k, adif.head_tags [k]))
+    print ("Got %s records" % len (adif.records))
+    print (adif.records [-1])
+    #print (adif)
     #print (adif.as_cabrillo (cabrillo = d))
+    if adif.eofmark :
+        print ('Got non-standard EOF-mark: %s' % adif.eofmark)
