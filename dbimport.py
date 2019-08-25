@@ -196,6 +196,13 @@ class ADIF_Uploader (requester.Requester) :
             # Ignore srx field (contest serial number)
             if 'srx' in record :
                 aprops.add ('srx')
+            if 'srx_string' in record :
+                aprops.add ('srx_string')
+            # Ignore stx field (contest serial number)
+            if 'stx' in record :
+                aprops.add ('stx')
+            if 'stx_string' in record :
+                aprops.add ('stx_string')
             # Get qso1 for schema
             schema_qso = self.get ('qso/1')
             schema_qso = list \
