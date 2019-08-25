@@ -18,15 +18,19 @@ class Requester (autosuper) :
         self.user     = username
         self.password = password
         self.headers  = {}
+        self._pw      = None
+        self.__super.__init__ ()
     # end def __init__
 
-    def get (self, s) :
+    def get (self, s, as_text=False) :
         r = self.session.get (self.url + s, headers = self.headers)
         if not (200 <= r.status_code <= 299) :
             raise RuntimeError \
                 ( 'Invalid get result: %s: %s\n    %s'
                 % (r.status_code, r.reason, r.text)
                 )
+        if as_text :
+            return r.text
         return r.json ()
     # end def get
 
@@ -34,7 +38,10 @@ class Requester (autosuper) :
         """ Password given as option takes precedence.
             Next we try password via .netrc. If that doesn't work we ask.
         """
+        if self._pw :
+            return self._pw
         if self.password :
+            self._pw = self.password
             return self.password
         a = n = None
         try :
@@ -48,8 +55,10 @@ class Requester (autosuper) :
             un, d, pw = a
             if un != self.user :
                 raise ValueError ("Netrc username doesn't match")
+            self._pw = pw
             return pw
         pw = getpass ('Password: ')
+        self._pw = pw
         return pw
     # end def get_pw
 
