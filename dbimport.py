@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 from netrc    import netrc
 from getpass  import getpass
+from afu      import requester
 try :
     from urllib.parse import urlparse, quote_plus
 except ImportError:
@@ -14,18 +15,15 @@ except ImportError:
     from urllib   import quote as quote_plus
 from adif     import ADIF
 
-class ADIF_Uploader (object) :
+class ADIF_Uploader (requester.Requester) :
 
     date_format = '%Y-%m-%d.%H:%M:%S'
 
     def __init__ (self, args) :
-        self.args    = args
-        self.session = requests.session ()
-        self.user    = args.username
-        self.url     = args.url
-        self.baseurl = args.url
-        # Basic Auth: user, password
-        self.session.auth = (self.user, self.get_pw ())
+        self.args     = args
+        self.password = args.password
+        self.__super.__init__ (args.url, args.username, args.password)
+        self.set_basic_auth ()
         if self.url.endswith ('/') :
             orig = self.url.rstrip ('/')
         else :
@@ -108,65 +106,6 @@ class ADIF_Uploader (object) :
 	dt = datetime.strptime (s, fmt)
 	return dt.strftime (self.date_format)
     # end def date_cvt
-
-    def get (self, s) :
-        r = self.session.get (self.url + s, headers = self.headers)
-        if not (200 <= r.status_code <= 299) :
-            raise RuntimeError \
-                ( 'Invalid get result: %s: %s\n    %s'
-                % (r.status_code, r.reason, r.text)
-                )
-        return r.json ()
-    # end def get
-
-    def get_pw (self) :
-        """ Password given as option takes precedence.
-            Next we try password via .netrc. If that doesn't work we ask.
-        """
-        if self.args.password :
-            return self.args.password
-        a = n = None
-        try :
-            n = netrc ()
-        except IOError :
-            pass
-        if n and self.args.url :
-            t = urlparse (self.args.url)
-            a = n.authenticators (t.netloc)
-        if a :
-            un, d, pw = a
-            if un != self.user :
-                raise ValueError ("Netrc username doesn't match")
-            return pw
-        pw = getpass ('Password: ')
-        return pw
-    # end def get_pw
-
-    def post_or_put (self, method, s, data = None, json = None, etag = None) :
-        d = {}
-        if data :
-            d ['data'] = data
-        if json :
-            d ['json'] = json
-        h = dict (self.headers)
-        if etag :
-            h ['If-Match'] = etag
-        r = method (self.url + s, headers = h, **d)
-        if not (200 <= r.status_code <= 299) :
-            raise RuntimeError \
-                ( 'Invalid put/post result: %s: %s\n    %s'
-                % (r.status_code, r.reason, r.text)
-                )
-        return r.json ()
-    # end def post_or_put
-
-    def post (self, s, data = None, json = None, etag = None) :
-        return self.post_or_put (self.session.post, s, data, json, etag)
-    # end def post
-
-    def put (self, s, data = None, json = None, etag = None) :
-        return self.post_or_put (self.session.put, s, data, json, etag)
-    # end def put
 
     def import_adif (self) :
         f = io.open (self.args.adif, 'r', encoding = self.args.encoding)
