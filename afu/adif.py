@@ -293,8 +293,8 @@ class ADIF (ADIF_Parse) :
                 break
         if self.records :
             last = self.records [-1]
-            if len (last.dict) == 1 and 'eof' in last.dict.keys () [0] :
-                key = last.dict.keys () [0]
+            key  = list (last.dict.keys ()) [0]
+            if len (last.dict) == 1 and 'eof' in key :
                 assert len (last [key]) == 0
                 self.eofmark = key
                 del self.records [-1]
