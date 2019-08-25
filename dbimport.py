@@ -8,12 +8,12 @@ from datetime import datetime
 from netrc    import netrc
 from getpass  import getpass
 from afu      import requester
+from afu.adif import ADIF
 try :
     from urllib.parse import urlparse, quote_plus
 except ImportError:
     from urlparse import urlparse
     from urllib   import quote as quote_plus
-from adif     import ADIF
 
 class ADIF_Uploader (requester.Requester) :
 
@@ -98,30 +98,32 @@ class ADIF_Uploader (requester.Requester) :
             self.cutoff = d
     # end def __init__
 
-    def date_cvt (self, d, t = '0000') :
-	s  = '.'.join ((d, t))
-        fmt = '%Y%m%d.%H%M'
-        if len (s) > 13 :
-            fmt = '%Y%m%d.%H%M%S'
-	dt = datetime.strptime (s, fmt)
-	return dt.strftime (self.date_format)
-    # end def date_cvt
-
     def import_adif (self) :
         f = io.open (self.args.adif, 'r', encoding = self.args.encoding)
         adif  = ADIF (f)
         count = 0
         for record in adif.records :
             aprops = set (('qso_date', 'time_on', 'time_off'))
-            ds = self.date_cvt (record ['qso_date'], record ['time_on'])
+            ds = ADIF.date_cvt \
+                ( record ['qso_date']
+                , record ['time_on']
+                , date_format = self.date_format
+                )
             if ds <= self.cutoff :
                 continue
             if 'qso_date_off' in record :
                 aprops.add ('qso_date_off')
-                de = self.date_cvt \
-                    (record ['qso_date_off'], record ['time_off'])
+                de = ADIF.date_cvt \
+                    ( record ['qso_date_off']
+                    , record ['time_off']
+                    , date_format = self.date_format
+                    )
             else :
-                de = self.date_cvt (record ['qso_date'], record ['time_off'])
+                de = ADIF.date_cvt \
+                    ( record ['qso_date']
+                    , record ['time_off']
+                    , date_format = self.date_format
+                    )
                 if de < ds :
                     notice ("time correction")
                     de = ds

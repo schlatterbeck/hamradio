@@ -12,6 +12,10 @@ class ADIF_Syntax_Error (RuntimeError)  : pass
 class ADIF_EOF          (Exception) : pass
 
 class ADIF_Parse (autosuper) :
+
+    # Default date format for date conversion, see date_cvt below
+    date_format = '%Y-%m-%dT%H:%M:%S'
+
     def __init__ (self, fd, lineno = 1) :
         self.__super.__init__ ()
         self.fd     = fd
@@ -19,6 +23,18 @@ class ADIF_Parse (autosuper) :
         self.dict   = {}
         self.header = None
     # end def __init__
+
+    @classmethod
+    def date_cvt (cls, d, t = '0000', date_format = None) :
+        if not date_format :
+            date_format = cls.date_format
+        s  = '.'.join ((d, t))
+        fmt = '%Y%m%d.%H%M'
+        if len (s) > 13 :
+            fmt = '%Y%m%d.%H%M%S'
+        dt = datetime.strptime (s, fmt)
+        return dt.strftime (date_format)
+    # end def date_cvt
 
     def get_header (self, endtag = 'eoh', firstchar = None) :
         endtag = endtag + '>'
