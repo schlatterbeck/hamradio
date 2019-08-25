@@ -37,8 +37,9 @@ class ADIF_Parse (autosuper) :
     # end def date_cvt
 
     def get_header (self, endtag = 'eoh', firstchar = None) :
-        endtag = endtag + '>'
+        endtag = (endtag + '>').lower ()
         head   = []
+        tag    = []
         state  = 'text'
         tagctr = 0
         if firstchar is not None :
@@ -49,17 +50,20 @@ class ADIF_Parse (autosuper) :
             if state == 'text' :
                 if c == '<' :
                     state = 'tag'
+                    tag = ['<']
                 else :
                     head.append (c)
             elif state == 'tag' :
                 if c.lower () == endtag [tagctr] :
+                    tag.append (c)
                     tagctr += 1
                     if tagctr >= len (endtag) :
                         self.header = ''.join (head)
                         return
                 else :
-                    head.append ('<')
-                    head.append (endtag [:tagctr])
+                    head.extend (tag)
+                    head.append (c)
+                    tag = []
                     tagctr = 0
                     state = 'text'
             else :
@@ -307,4 +311,4 @@ if __name__ == '__main__' :
     adif = ADIF (f, callsign = 'OE3RSU')
     d = {'START-OF-LOG' : '2.0'}
     print (adif.header)
-    print (adif.as_cabrillo (cabrillo = d))
+    #print (adif.as_cabrillo (cabrillo = d))
