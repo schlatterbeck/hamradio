@@ -69,12 +69,19 @@ class ADIF_Uploader (requester.Requester) :
     # end def __init__
 
     def find_qsl (self, call, rdate, type = None) :
-        s = 'qsl?@verbose=2&qso.call=%s&qso.qso_start=%s' % (call, rdate)
+        d = self.format_date (rdate)
+        s = 'qsl?@fields=date_sent,date_recv,qso&qso.call:=%s&qso.qso_start=%s'
+        s = s % (call, d)
         if type :
             s += '&qsl_type=%s' % type
-        print (s)
         return self.get (s) ['data']['collection']
     # end def find_qsl
+
+    def format_date (self, date1, date2 = None) :
+        if date2 is None :
+            date2 = date1
+        return quote_plus (';').join ((date1, date2))
+    # end def format_date
 
     def import_adif (self, adif, encoding) :
         f = io.open (adif, 'r', encoding = encoding)
@@ -106,7 +113,7 @@ class ADIF_Uploader (requester.Requester) :
                     notice ("time correction")
                     de = ds
             assert (de >= ds)
-            pp = '%3b'.join ((de, de))
+            pp = self.format_date (de)
             dr = self.get ('qso?qso_end=%s&owner=%s' % (pp, self.id_call))
             if dr ['data']['collection'] :
                 dupe = False
