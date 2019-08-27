@@ -157,6 +157,10 @@ class ADIF_Parse (autosuper) :
             c = self.fd.read (1)
     # end def get_tag
 
+    def set_date_format (self, format) :
+        self.date_format = format
+    # end def set_date_format
+
     def __getitem__ (self, name) :
         n = name.lower ()
         return self.dict [n]
@@ -188,7 +192,8 @@ class ADIF_Record (ADIF_Parse) :
         , 'gridsquare:4'
         ]
 
-    def __init__ (self, adif, fd, lineno, end_tag = 'eor', firstchar = None) :
+    def __init__ (self, adif, fd, lineno, end_tag = 'eor', firstchar =
+    None, date_format = None) :
         """ consume one record from fd """
         self.__super.__init__ (fd, lineno)
         self.end_tag  = end_tag
@@ -212,11 +217,26 @@ class ADIF_Record (ADIF_Parse) :
         return ' '.join (r)
     # end def as_cabrillo
 
-    def get_date (self) :
+    def get_date (self, date_fmt = None) :
         """ Return the date of the record computed from QSO_DATE and
             TIME_ON.
         """
-        return self.date_cvt (self.qso_date, self.time_on)
+        if date_fmt is None :
+            date_fmt = self.adif.date_format
+        return self.date_cvt \
+            (self.qso_date, self.time_on, date_format = date_fmt)
+    # end def get_date
+    get_date_on = get_date
+
+    def get_date_off (self, date_fmt = None) :
+        """ Return the date of the record computed from QSO_DATE_OFF and
+            TIME_OFF.
+        """
+        if date_fmt is None :
+            date_fmt = self.adif.date_format
+        if qso_date_off in self and time_off in self :
+            return self.date_cvt \
+                (self.qso_date_off, self.time_off, date_format = date_fmt)
     # end def get_date
 
     def __getitem__ (self, name) :
