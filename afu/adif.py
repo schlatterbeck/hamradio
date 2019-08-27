@@ -242,7 +242,7 @@ class ADIF_Record (ADIF_Parse) :
     def __getattr__ (self, name) :
         try :
             return self [name]
-        except IndexError as msg :
+        except KeyError as msg :
             raise AttributeError (str (msg))
 
     def __contains__ (self, name) :
@@ -279,6 +279,7 @@ class ADIF (ADIF_Parse) :
         self.dict.update (kw)
         if callsign :
             self.dict ['own_call'] = callsign
+        self.by_call  = {}
         self.records  = []
         c1 = fd.read (1)
         if c1 != '<' :
@@ -286,8 +287,12 @@ class ADIF (ADIF_Parse) :
             c1 = None
         while (1) :
             try :
-                self.records.append \
-                    (ADIF_Record (self, fd, self.lineno, firstchar = c1))
+                r = ADIF_Record (self, fd, self.lineno, firstchar = c1)
+                self.records.append (r)
+                if getattr (r, 'call', None) :
+                    if r.call not in self.by_call :
+                        self.by_call [r.call] = []
+                    self.by_call [r.call].append (r)
                 c1 = None
             except ADIF_EOF :
                 break
