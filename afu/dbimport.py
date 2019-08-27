@@ -76,50 +76,6 @@ class ADIF_Uploader (requester.Requester) :
         return self.get (s) ['data']['collection']
     # end def find_qsl
 
-    def set_call (self, call) :
-        call = self.get \
-            ('ham_call?name=%s&@fields=name,call,gridsquare' % call)
-        collection = call ['data']['collection']
-        if len (collection) == 0 :
-            raise ValueError ('Invalid call: %s' % call)
-        if len (collection) > 1 :
-            raise ValueError \
-                ( 'Too many calls matched for %s:\n%s'
-                % ( call, '\n'.join (x ['name'] for x in collection))
-                )
-        self.call    = collection [0]
-        self.id_call = self.call ['id']
-    # end def set_call
-
-    def set_cutoff_date (self, cutoff_date = None) :
-        if cutoff_date :
-            fmts = \
-                ("%Y-%m-%d.%H:%M:%S", "%Y-%m-%dT%H:%M:%S"
-                , "%Y-%m-%d.%H:%M",   "%Y-%m-%dT%H:%M"
-                , "%Y-%m-%d"
-                )
-            for fmt in fmts :
-                try :
-                    dt = datetime.strptime (cutoff_date, fmt)
-                    break
-                except ValueError :
-                    pass
-            else :
-                raise ValueError \
-                    ("Unrecognized date format for %s" % cutoff_date)
-            self.cutoff = dt.strftime (self.date_format)
-        else :
-            # Get QSO with latest start date unfortunately we have to
-            # retrieve *all* qsos and sort ourselves.
-            # Should be fixed once we can.
-            qso = self.get ('qso?@fields=qso_start')
-            d = ''
-            for q in qso ['data']['collection'] :
-                if q ['qso_start'] > d :
-                    d = q ['qso_start']
-            self.cutoff = d
-    # end def set_cutoff_date
-
     def import_adif (self, adif, encoding) :
         f = io.open (adif, 'r', encoding = encoding)
         adif  = ADIF (f)
@@ -259,6 +215,50 @@ class ADIF_Uploader (requester.Requester) :
         print (self.dryrun, end = '')
         print (*args)
     # end def notice
+
+    def set_call (self, call) :
+        call = self.get \
+            ('ham_call?name=%s&@fields=name,call,gridsquare' % call)
+        collection = call ['data']['collection']
+        if len (collection) == 0 :
+            raise ValueError ('Invalid call: %s' % call)
+        if len (collection) > 1 :
+            raise ValueError \
+                ( 'Too many calls matched for %s:\n%s'
+                % ( call, '\n'.join (x ['name'] for x in collection))
+                )
+        self.call    = collection [0]
+        self.id_call = self.call ['id']
+    # end def set_call
+
+    def set_cutoff_date (self, cutoff_date = None) :
+        if cutoff_date :
+            fmts = \
+                ("%Y-%m-%d.%H:%M:%S", "%Y-%m-%dT%H:%M:%S"
+                , "%Y-%m-%d.%H:%M",   "%Y-%m-%dT%H:%M"
+                , "%Y-%m-%d"
+                )
+            for fmt in fmts :
+                try :
+                    dt = datetime.strptime (cutoff_date, fmt)
+                    break
+                except ValueError :
+                    pass
+            else :
+                raise ValueError \
+                    ("Unrecognized date format for %s" % cutoff_date)
+            self.cutoff = dt.strftime (self.date_format)
+        else :
+            # Get QSO with latest start date unfortunately we have to
+            # retrieve *all* qsos and sort ourselves.
+            # Should be fixed once we can.
+            qso = self.get ('qso?@fields=qso_start')
+            d = ''
+            for q in qso ['data']['collection'] :
+                if q ['qso_start'] > d :
+                    d = q ['qso_start']
+            self.cutoff = d
+    # end def set_cutoff_date
 
 # end class ADIF_Uploader
 
