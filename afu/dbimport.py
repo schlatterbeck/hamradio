@@ -25,11 +25,12 @@ class ADIF_Uploader (requester.Requester) :
         , username
         , password = None
         , dry_run  = False
+        , verbose  = False
         , antenna  = []
-        , call     = None
         ) :
         self.__super.__init__ (url, username, password)
         self.dry_run = dry_run
+        self.verbose = verbose
         self.set_basic_auth ()
         if self.url.endswith ('/') :
             orig = self.url.rstrip ('/')
@@ -65,17 +66,32 @@ class ADIF_Uploader (requester.Requester) :
             if len (collection) > 1 :
                 raise ValueError ('No exact match for band: %s' % band)
             self.antenna [band] = antenna
-        self.call = None
     # end def __init__
 
-    def find_qsl (self, call, rdate, type = None) :
-        d = self.format_date (rdate)
+    def find_qsl (self, call, qsodate, type = None) :
+        d = self.format_date (qsodate)
         s = 'qsl?@fields=date_sent,date_recv,qso&qso.call:=%s&qso.qso_start=%s'
         s = s % (call, d)
         if type :
             s += '&qsl_type=%s' % type
-        return self.get (s) ['data']['collection']
+        r = self.get (s) ['data']['collection']
+        if type :
+            assert len (r) <= 1
+            if len (r) == 1 :
+                return r [0]
+        else :
+            return r
     # end def find_qsl
+
+    def find_qso (self, call, qsodate) :
+        d = self.format_date (qsodate)
+        s = 'qso?@fields=call&call:=%s&qso_start=%s'
+        s = s % (call, d)
+        r = self.get (s) ['data']['collection']
+        assert len (r) <= 1
+        if len (r) == 1 :
+            return r [0]
+    # end def find_qso
 
     def format_date (self, date1, date2 = None) :
         if date2 is None :
@@ -213,7 +229,7 @@ class ADIF_Uploader (requester.Requester) :
     # end def import_adif
 
     def info (self, *args) :
-        if self.args.verbose :
+        if self.verbose :
             print (self.dryrun, end = '')
             print (*args)
     # end def info
@@ -323,10 +339,17 @@ def main () :
         , action  = 'store_true'
         )
     args   = cmd.parse_args ()
-    au     = ADIF_Uploader (args)
+    au     = ADIF_Uploader \
+        ( args.url
+        , args.username
+        , args.password
+        , args.dry_run
+        , args.verbose
+        , args.antenna
+        )
     au.set_call        (args.call)
     au.set_cutoff_date (args.cutoff_date)
-    au.import_adif ()
+    au.import_adif (args.adif, args.encoding)
 
 # end def main
 
