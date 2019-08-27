@@ -112,15 +112,15 @@ def main () :
         , action  = 'store_true'
         )
     args   = cmd.parse_args ()
-    #lq     = LOTW_Query (args.username, args.password)
-    #adif   = lq.get_qso ('2010-01-01', mydetail = 'yes')
+    lq     = LOTW_Query (args.username, args.password)
+    adif   = lq.get_qso ('2010-01-01', mydetail = 'yes')
+    with io.StringIO (adif) as f :
+        lotw_adif = ADIF (f)
     #with io.open ('zoppel3', 'w', encoding = 'utf-8') as f :
     #    f.write (adif)
-    #with io.StringIO (adif) as f :
-    #    lotw_adif = ADIF (f)
     # For now get downloaded file
-    with io.open ('zoppel3', 'r', encoding = 'utf-8') as f :
-        lotw_adif  = ADIF (f)
+    #with io.open ('zoppel3', 'r', encoding = 'utf-8') as f :
+    #    lotw_adif  = ADIF (f)
 
     # Get the given ADIF file
     with io.open (args.adif, 'r', encoding = args.encoding) as f :
@@ -148,17 +148,20 @@ def main () :
         else :
             print ("Call: %s not in lotw" % r.call)
             continue
-        print ("Found %s in lotw" % r.call)
+        if args.verbose :
+            print ("Found %s in lotw" % r.call)
         # look it up in DB
         qsl = au.find_qsl (r.call, r.get_date (), type = 'LOTW')
         if not qsl :
-            print ("Call: %s not found in DB" % r.call)
+            if args.verbose :
+                print ("Call: %s not found in DB" % r.call)
             # Search QSO
             qso = au.find_qso (r.call, r.get_date ())
             if not qso :
                 print ("Call: %s QSO not found in DB!!!!!" % r.call)
                 continue
-            print ("Found QSO")
+            if args.verbose :
+                print ("Found QSO")
             if args.upload_date :
                 d = dict \
                     ( qso       = qso ['id']
@@ -169,7 +172,8 @@ def main () :
                     result = au.post ('qsl', json = d)
                 print ("%sCall %s: Created QSL" % (dryrun, r.call))
             continue
-        print ("Found %s in DB" % r.call)
+        if args.verbose :
+            print ("Found %s in DB" % r.call)
         #print (qsl)
         if args.upload_date :
             if args.upload_date != qsl ['date_sent'] :
