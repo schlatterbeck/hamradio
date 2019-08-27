@@ -132,6 +132,10 @@ def main () :
     lotw_adif.set_date_format (au.date_format)
     adif.set_date_format      (au.date_format)
 
+    dryrun = ''
+    if args.dry_run :
+        dryrun = '[dry run] '
+
     # Match QSOs and check if LOTW-QSL exists
     for r in adif.records :
         ds = r.get_date ()
@@ -161,8 +165,9 @@ def main () :
                     , date_sent = args.upload_date
                     , qsl_type  = 'LOTW'
                     )
-                result = au.post ('qsl', json = d)
-                print ("Call %s: Created QSL" % r.call)
+                if not args.dry_run :
+                    result = au.post ('qsl', json = d)
+                print ("%sCall %s: Created QSL" % (dryrun, r.call))
             continue
         print ("Found %s in DB" % r.call)
         #print (qsl)
@@ -174,11 +179,12 @@ def main () :
                     )
                 q = au.get ('qsl/%s' % qsl ['id'])
                 etag = q ['data']['@etag']
-                r = au.put \
-                    ( 'qsl/%s' % qsl ['id']
-                    , json = dict (date_sent = args.upload_date)
-                    , etag = etag
-                    )
+                if not args.dry_run :
+                    r = au.put \
+                        ( 'qsl/%s' % qsl ['id']
+                        , json = dict (date_sent = args.upload_date)
+                        , etag = etag
+                        )
 # end def main
 
 if __name__ == '__main__' :
