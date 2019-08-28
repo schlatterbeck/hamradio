@@ -8,7 +8,7 @@ from datetime import datetime
 from netrc    import netrc
 from getpass  import getpass
 from afu      import requester
-from afu.adif import ADIF
+from afu.adif import ADIF, Native_ADIF_Record
 try :
     from urllib.parse import urlparse, quote_plus
 except ImportError:
@@ -67,6 +67,34 @@ class ADIF_Uploader (requester.Requester) :
                 raise ValueError ('No exact match for band: %s' % band)
             self.antenna [band] = antenna
     # end def __init__
+
+    def qso_as_adif (self, id) :
+        """ Retrieve QSO with id and output it as ADIF.
+        """
+        qso   = self.get ('qso/%s?@verbose=3' % id) ['data']['attributes']
+        start = datetime.strptime (qso ['qso_start'], self.date_format)
+        end   = datetime.strptime (qso ['qso_end'], self.date_format)
+        owner = self.get ('ham_call/%s' % qso ['owner']['id'])
+        owner = owner ['data']['attributes']
+
+        rec   = Native_ADIF_Record \
+            ( call             = qso ['call']
+            , mode             = qso ['mode']['name']
+            , qso_date         = start.strftime ('%Y%m%d')
+            , time_on          = start.strftime ('%H%M%S')
+            , qso_date_off     = end.strftime ('%Y%m%d')
+            , time_off         = end.strftime ('%H%M%S')
+            , gridsquare       = qso ['gridsquare']
+            , rst_sent         = qso ['rst_sent']
+            , rst_rcvd         = qso ['rst_rcvd']
+            , band             = qso ['band']['name']
+            , freq             = qso ['freq']
+            , station_callsign = owner['call']
+            , my_gridsquare    = owner['gridsquare']
+            , tx_pwr           = qso ['tx_pwr']
+            )
+        return rec
+    # end def qso_as_adif
 
     def find_qsl (self, call, qsodate, type = None) :
         d = self.format_date (qsodate, qsodate)
