@@ -49,11 +49,130 @@ class LOTW_Query (requester.Requester) :
 
 # end class LOTW_Query
 
+class LOTW_Downloader (object) :
+
+    def __init__ \
+        ( self
+        , url
+        , db_username
+        , username
+        , password
+        , dry_run     = False
+        , verbose     = False
+        , adif        = None
+        , cutoff      = None
+        , lotw_cutoff = None
+        , encoding    = 'utf-8'
+        ) :
+        self.url         = url
+        self.db_username = db_username
+        self.dry_run     = dry_run
+        self.verbose     = verbose
+        self.adiffile    = adif
+        self.cutoff      = cutoff
+        self.lotw_cutoff = lotw_cutoff
+        self.encoding    = encoding
+        lq     = LOTW_Query (username, password)
+        adif   = lq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
+        with io.StringIO (adif) as f :
+            self.lotw_adif = ADIF (f)
+        #with io.open ('zoppel3', 'w', encoding = 'utf-8') as f :
+        #    f.write (adif)
+        # For now get downloaded file
+        #with io.open ('zoppel3', 'r', encoding = 'utf-8') as f :
+        #    self.lotw_adif  = ADIF (f)
+
+        # Open dbimporter
+        self.uploader = ADIF_Uploader (self.url, self.db_username)
+
+        self.lotw_adif.set_date_format (self.uploader.date_format)
+
+        self.adif = None
+        # Get the given ADIF file
+        if self.adiffile :
+            with io.open (self.adiffile, 'r', encoding = self.encoding) as f :
+                adif  = ADIF (f)
+                adif.set_date_format (self.uploader.date_format)
+                self.adif = adif
+
+        self.dryrun = ''
+        if self.dry_run :
+            self.dryrun = '[dry run] '
+    # end def __init__
+
+    def check_adif (self, qslsdate = None) :
+        """ Match QSOs and check if LOTW-QSL exists
+            Update date if it is given and does not match
+            Create QSL if it doesn't exist and a date is given
+        """
+        if not self.adif :
+            print ("No ADIF file specified")
+            return
+
+        for r in self.adif.records :
+            ds = r.get_date ()
+            if ds <= self.cutoff :
+                continue
+            calls = self.lotw_adif.by_call.get (r.call, [])
+            for lc in calls :
+                if lc.get_date () == r.get_date () :
+                    break
+            else :
+                print ("Call: %s not in lotw" % r.call)
+                continue
+            if self.verbose :
+                print ("Found %s in lotw" % r.call)
+            # look it up in DB
+            qsl = self.uploader.find_qsl (r.call, r.get_date (), type = 'LOTW')
+            if not qsl :
+                if self.verbose :
+                    print ("Call: %s not found in DB" % r.call)
+                # Search QSO
+                qso = self.uploader.find_qso (r.call, r.get_date ())
+                if not qso :
+                    print ("Call: %s QSO not found in DB!!!!!" % r.call)
+                    continue
+                if self.verbose :
+                    print ("Found QSO")
+                if qslsdate :
+                    d = dict \
+                        ( qso       = qso ['id']
+                        , date_sent = qslsdate
+                        , qsl_type  = 'LOTW'
+                        )
+                    if not self.dry_run :
+                        result = self.uploader.post ('qsl', json = d)
+                    print ("%sCall %s: Created QSL" % (self.dryrun, r.call))
+                continue
+            if self.verbose :
+                print ("Found %s in DB" % r.call)
+            if qslsdate :
+                if qslsdate != qsl ['date_sent'] :
+                    print \
+                        ( "Dates do not match: %s in DB vs %s requested"
+                        % (qsl ['date_sent'], qslsdate)
+                        )
+                    q = self.uploader.get ('qsl/%s' % qsl ['id'])
+                    etag = q ['data']['@etag']
+                    if not self.dry_run :
+                        r = self.uploader.put \
+                            ( 'qsl/%s' % qsl ['id']
+                            , json = dict (date_sent = qslsdate)
+                            , etag = etag
+                            )
+    # end def check_adif
+
+    def check_qsl (self) :
+        pass
+
+# end class LOTW_Downloader
+
 def main () :
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( "adif"
         , help    = "ADIF file to import"
+        , nargs   = '?'
         )
     cmd.add_argument \
         ( "-a", "--antenna"
@@ -74,13 +193,20 @@ def main () :
         )
     cmd.add_argument \
         ( "-d", "--cutoff-date"
-        , help    = "Import no QSOs starting before that date,"
-                    " use last QSO date by default"
+        , help    = "Check no QSLs starting before that date in ADIF"
+                    " default = %(default)s"
+        , default = "2010-01-01"
         )
     cmd.add_argument \
         ( "-e", "--encoding"
         , help    = "Encoding of ADIF file, default=%(default)s"
         , default = 'utf-8'
+        )
+    cmd.add_argument \
+        ( "-l", "--lotw-cutoff-date"
+        , help    = "Check no QSLs from LOTS starting before that date,"
+                    " default = %(default)s"
+        , default = '2010-01-01'
         )
     cmd.add_argument \
         ( "-n", "--dry-run"
@@ -111,84 +237,23 @@ def main () :
         , help    = "Verbose output"
         , action  = 'store_true'
         )
-    args   = cmd.parse_args ()
-    lq     = LOTW_Query (args.username, args.password)
-    adif   = lq.get_qso ('2010-01-01', mydetail = 'yes')
-    with io.StringIO (adif) as f :
-        lotw_adif = ADIF (f)
-    #with io.open ('zoppel3', 'w', encoding = 'utf-8') as f :
-    #    f.write (adif)
-    # For now get downloaded file
-    #with io.open ('zoppel3', 'r', encoding = 'utf-8') as f :
-    #    lotw_adif  = ADIF (f)
-
-    # Get the given ADIF file
-    with io.open (args.adif, 'r', encoding = args.encoding) as f :
-        adif  = ADIF (f)
-
-    # Open dbimporter
-    au = ADIF_Uploader (args.url, args.db_username)
-
-    lotw_adif.set_date_format (au.date_format)
-    adif.set_date_format      (au.date_format)
-
-    dryrun = ''
-    if args.dry_run :
-        dryrun = '[dry run] '
-
-    # Match QSOs and check if LOTW-QSL exists
-    for r in adif.records :
-        ds = r.get_date ()
-        if ds <= args.cutoff_date :
-            continue
-        calls = lotw_adif.by_call.get (r.call, [])
-        for lc in calls :
-            if lc.get_date () == r.get_date () :
-                break
-        else :
-            print ("Call: %s not in lotw" % r.call)
-            continue
-        if args.verbose :
-            print ("Found %s in lotw" % r.call)
-        # look it up in DB
-        qsl = au.find_qsl (r.call, r.get_date (), type = 'LOTW')
-        if not qsl :
-            if args.verbose :
-                print ("Call: %s not found in DB" % r.call)
-            # Search QSO
-            qso = au.find_qso (r.call, r.get_date ())
-            if not qso :
-                print ("Call: %s QSO not found in DB!!!!!" % r.call)
-                continue
-            if args.verbose :
-                print ("Found QSO")
-            if args.upload_date :
-                d = dict \
-                    ( qso       = qso ['id']
-                    , date_sent = args.upload_date
-                    , qsl_type  = 'LOTW'
-                    )
-                if not args.dry_run :
-                    result = au.post ('qsl', json = d)
-                print ("%sCall %s: Created QSL" % (dryrun, r.call))
-            continue
-        if args.verbose :
-            print ("Found %s in DB" % r.call)
-        #print (qsl)
-        if args.upload_date :
-            if args.upload_date != qsl ['date_sent'] :
-                print \
-                    ( "Dates do not match: %s in DB vs %s requested"
-                    % (qsl ['date_sent'], args.upload_date)
-                    )
-                q = au.get ('qsl/%s' % qsl ['id'])
-                etag = q ['data']['@etag']
-                if not args.dry_run :
-                    r = au.put \
-                        ( 'qsl/%s' % qsl ['id']
-                        , json = dict (date_sent = args.upload_date)
-                        , etag = etag
-                        )
+    args = cmd.parse_args ()
+    lu   = LOTW_Downloader \
+        ( args.url
+        , args.db_username
+        , args.username
+        , args.password
+        , dry_run     = args.dry_run
+        , adif        = args.adif
+        , cutoff      = args.cutoff_date
+        , lotw_cutoff = args.lotw_cutoff_date
+        , verbose     = args.verbose
+        , encoding    = args.encoding
+        )
+    if args.adif :
+        lu.check_adif (qslsdate = args.upload_date)
+    else :
+        lu.check_qsl ()
 # end def main
 
 if __name__ == '__main__' :
