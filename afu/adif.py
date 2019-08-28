@@ -72,9 +72,6 @@ class ADIF_Parse (autosuper) :
 	    mode = self.app_lotw_mode
 	else :
 	    mode = self.mode
-        # LOTW accepts only the PSK variants
-	if mode.startswith ('QPSK') :
-            mode = mode [1:]
         return mode
     # end def get_mode
 

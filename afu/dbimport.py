@@ -103,6 +103,9 @@ class ADIF_Uploader (requester.Requester) :
         if type :
             s += '&qsl_type=%s' % type
         if mode :
+            # Search for both, PSKxxx and QPSKxxx
+            if mode.startswith ('PSK') :
+                mode = mode + ',Q%s' % mode
             s += '&qso.mode=%s' % mode
         r = self.get (s) ['data']['collection']
         if type and mode :
