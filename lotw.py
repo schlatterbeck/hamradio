@@ -218,6 +218,23 @@ class LOTW_Downloader (object) :
                     break
             else :
                 print ("Call: %s %s not in lotw" % (date, call))
+    # end def check_db_qsl_against_lotw
+
+    def check_lotw_qso_against_qsl (self) :
+        """ Loop over all LOTW QSOs sind lotw_cuttoff date and check
+            they exist as SQL records (type LOTW) in local DB.
+        """
+        adif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
+        adif.set_date_format (self.uploader.date_format)
+        for n, a in enumerate (adif) :
+            qsl = self.uploader.find_qsl (a.call, a.get_date (), type = 'LOTW')
+            if not qsl :
+                print ("Call: %s: no LOTW QSL found in DB" % a.call)
+                print (a)
+            if self.verbose :
+                print ("%s: found: %s         " % (n, a.call), end = '\r')
+                sys.stdout.flush ()
+    # end def check_lotw_qso_against_qsl
 
     def find_qso_without_qsl (self) :
         """ Loop over all QSOs and find those that do not have a
@@ -289,6 +306,11 @@ def main () :
         ( "-c", "--call"
         , help    = "Location name to use for local DB"
         , default = 'OE3RSU Weidling'
+        )
+    cmd.add_argument \
+        ( "--check-lotw-qso-against-qsl"
+        , help    = "Loop over all LOTW QSOs and check if LOTW-QSL is in DB"
+        , action  = 'store_true'
         )
     cmd.add_argument \
         ( "-D", "--upload-date"
@@ -367,6 +389,8 @@ def main () :
     elif args.export_adif_from_list :
         adif = lu.export_adif_from_list (args.export_adif_from_list)
         print (adif)
+    elif args.check_lotw_qso_against_qsl :
+        lu.check_lotw_qso_against_qsl ()
     elif args.adif :
         lu.check_adif (qslsdate = args.upload_date)
     else :
