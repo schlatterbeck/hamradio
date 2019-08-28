@@ -96,14 +96,16 @@ class ADIF_Uploader (requester.Requester) :
         return rec
     # end def qso_as_adif
 
-    def find_qsl (self, call, qsodate, type = None) :
+    def find_qsl (self, call, qsodate, type = None, mode = None) :
         d = self.format_date (qsodate, qsodate)
         s = 'qsl?@fields=date_sent,date_recv,qso&qso.call:=%s&qso.qso_start=%s'
         s = s % (call, d)
         if type :
             s += '&qsl_type=%s' % type
+        if mode :
+            s += '&qso.mode=%s' % mode
         r = self.get (s) ['data']['collection']
-        if type :
+        if type and mode :
             assert len (r) <= 1
             if len (r) == 1 :
                 return r [0]
