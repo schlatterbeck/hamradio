@@ -67,6 +67,17 @@ class ADIF_Parse (autosuper) :
             c = self.fd.read (1)
     # end def get_header
 
+    def get_mode (self) :
+	if 'app_lotw_mode' in self :
+	    mode = self.app_lotw_mode
+	else :
+	    mode = self.mode
+        # LOTW accepts only the PSK variants
+	if mode.startswith ('QPSK') :
+            mode = mode [1:]
+        return mode
+    # end def get_mode
+
     def get_tags (self, endtag, firstchar = None) :
         for k, v in self.get_tag (firstchar = firstchar) :
             firstchar = None
@@ -234,10 +245,19 @@ class ADIF_Record (ADIF_Parse) :
         """
         if date_fmt is None :
             date_fmt = self.adif.date_format
-        if qso_date_off in self and time_off in self :
+        if 'qso_date_off' in self and 'time_off' in self :
             return self.date_cvt \
                 (self.qso_date_off, self.time_off, date_format = date_fmt)
     # end def get_date
+
+    def get_qsl_rdate (self, date_fmt = None) :
+        """ Return the date of the record computed from QSLRDATE.
+        """
+        if date_fmt is None :
+            date_fmt = self.adif.date_format
+        if 'qslrdate' in self :
+            return self.date_cvt (self.qslrdate, date_format = date_fmt)
+    # end def get_qsl_rdate
 
     def __getitem__ (self, name) :
         n = name.lower ()
