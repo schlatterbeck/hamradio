@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import io
+import sys
 import requests
 from argparse     import ArgumentParser
 from datetime     import datetime
@@ -34,18 +35,47 @@ class LOTW_Query (requester.Requester) :
             enddate, endtime, mydetail, withown.
             Note that the 'since' parameter specifies the date QSO were
             uploaded to LOTW, not the startdate/starttime of the QSO.
+            We directly return an ADIF object.
         """
         d = {}
         for a in args :
             d ['qso_' + a] = args [a]
+        d ['login']          = self.user
+        d ['password']       = self.get_pw ()
         d ['qso_qsl']        = 'no'
         d ['qso_query']      = 1
         d ['qso_qsorxsince'] = since
+        t = self.get ('?' + urlencode (d), as_text = True)
+        with io.StringIO (t) as f :
+            adif = ADIF (f)
+        return adif
+    # end def get_qso
+
+    def get_qsl (self, since = '2010-01-01', **args) :
+        """ Get QSLs for the given parameters.
+            Parameters are automagically prefixed with 'qso_'
+            according the the lotw API.
+            Allowed values according to
+            https://lotw.arrl.org/lotw-help/developer-query-qsos-qsls/
+            are owncall, callsign, mode, band, startdate, starttime,
+            enddate, endtime, mydetail, withown.
+            Note that the 'since' parameter specifies the date QSO were
+            uploaded to LOTW, not the startdate/starttime of the QSO.
+            We directly return an ADIF object.
+        """
+        for a in args :
+            d ['qso_' + a] = args [a]
         d ['login']          = self.user
         d ['password']       = self.get_pw ()
+        d ['qso_qsl']        = 'yes'
+        d ['qso_query']      = 1
+        d ['qso_qslsince']   = since
+        d ['qso_qsldetail']  = 'yes'
         t = self.get ('?' + urlencode (d), as_text = True)
-        return t
-    # end def get_qso
+        with io.StringIO (t) as f :
+            adif = ADIF (f)
+        return adif
+    # end def get_qsl
 
 # end class LOTW_Query
 
@@ -72,20 +102,10 @@ class LOTW_Downloader (object) :
         self.cutoff      = cutoff
         self.lotw_cutoff = lotw_cutoff
         self.encoding    = encoding
-        lq     = LOTW_Query (username, password)
-        adif   = lq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
-        with io.StringIO (adif) as f :
-            self.lotw_adif = ADIF (f)
-        #with io.open ('zoppel3', 'w', encoding = 'utf-8') as f :
-        #    f.write (adif)
-        # For now get downloaded file
-        #with io.open ('zoppel3', 'r', encoding = 'utf-8') as f :
-        #    self.lotw_adif  = ADIF (f)
 
         # Open dbimporter
         self.uploader = ADIF_Uploader (self.url, self.db_username)
-
-        self.lotw_adif.set_date_format (self.uploader.date_format)
+        self.lotwq    = LOTW_Query (username, password)
 
         self.adif = None
         # Get the given ADIF file
@@ -109,11 +129,19 @@ class LOTW_Downloader (object) :
             print ("No ADIF file specified")
             return
 
+        ladif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
+        #with io.open ('zoppel3', 'w', encoding = 'utf-8') as f :
+        #    f.write (adif)
+        # For now get downloaded file
+        #with io.open ('zoppel3', 'r', encoding = 'utf-8') as f :
+        #    ladif  = ADIF (f)
+        ladif.set_date_format (self.uploader.date_format)
+
         for r in self.adif.records :
             ds = r.get_date ()
             if ds <= self.cutoff :
                 continue
-            calls = self.lotw_adif.by_call.get (r.call, [])
+            calls = ladif.by_call.get (r.call, [])
             for lc in calls :
                 if lc.get_date () == r.get_date () :
                     break
@@ -162,7 +190,69 @@ class LOTW_Downloader (object) :
                             )
     # end def check_adif
 
+    def check_db_qsl_against_lotw (self) :
+        """ Get all DB records since the db cutoff (qsl-sent-date).
+            Retrieve all QSOs from LOTW since that cutoff date (the
+            lotw_cutoff is ignored) and check if all local QSLs exist as
+            QSO in LOTW.
+        """
+        # look it up in DB
+        cut = self.uploader.format_date (self.cutoff)
+        qsl = self.uploader.get \
+            ('qsl?date_sent=%s&qsl_type=LOTW&@fields=qso' % cut)
+        qsl = qsl ['data']['collection']
+        adif = self.lotwq.get_qso (since = self.cutoff, mydetail = 'yes')
+        adif.set_date_format (self.uploader.date_format)
+        for n, q in enumerate (qsl) :
+            qso = self.uploader.get ('qso/%s' % q ['qso']['id'])
+            q ['QSO'] = qso ['data']['attributes']
+            # Look it up by call in lotw
+            call = q ['QSO']['call']
+            date = q ['QSO']['qso_start']
+            for a in adif.by_call.get (call, []) :
+                assert a.call == call
+                if a.get_date () == date :
+                    if self.verbose :
+                        print ("%s: found: %s         " % (n, call), end = '\r')
+                        sys.stdout.flush ()
+                    break
+            else :
+                print ("Call: %s %s not in lotw" % (date, call))
+
+    def find_qso_without_qsl (self) :
+        """ Loop over all QSOs and find those that do not have a
+            corresponding LOTW QSL. Use the cutoff date for selecting
+            the qso_start.
+        """
+        cut = self.uploader.format_date (self.cutoff)
+        qso = self.uploader.get \
+            ('qso?qso_start=%s&@fields=call,qso_start,swl' % cut)
+        qso = qso ['data']['collection']
+        for n, q in enumerate (qso) :
+            call = q ['call']
+            qsl = self.uploader.get ('qsl?qso=%s&qsl_type=LOTW' % q ['id'])
+            qsl = qsl ['data']['collection']
+            assert len (qsl) <= 1
+            if not qsl :
+                if q ['swl'] :
+                    print ("%s: %s: SWL       " % (n, call))
+                else :
+                    print \
+                        ( "Call: %s %s has no LOTW qsl"
+                        % (q ['qso_start'], call)
+                        )
+            elif self.verbose :
+                print ("%s: found: %s         " % (n, call), end = '\r')
+                sys.stdout.flush ()
+    # end def find_qso_without_qsl
+
     def check_qsl (self) :
+        """ Get all QSL starting with as qsl-s-date of the given DB
+            cutoff date. Get the QSOs for these QSLs, too. Check them
+            one-by-one against the QSLs from LOTW.
+        """
+        #lotw_qsl = self.
+        #adif = self.lotwq.get_qsl (since = self.lotw_cutoff, mydetail = 'yes')
         pass
 
 # end class LOTW_Downloader
@@ -201,6 +291,11 @@ def main () :
         ( "-e", "--encoding"
         , help    = "Encoding of ADIF file, default=%(default)s"
         , default = 'utf-8'
+        )
+    cmd.add_argument \
+        ( "--find-qso-without-qsl"
+        , help    = "Find all QSOs in local DB that don't have an LOTW qsl"
+        , action  = 'store_true'
         )
     cmd.add_argument \
         ( "-l", "--lotw-cutoff-date"
@@ -250,10 +345,12 @@ def main () :
         , verbose     = args.verbose
         , encoding    = args.encoding
         )
-    if args.adif :
+    if args.find_qso_without_qsl :
+        lu.find_qso_without_qsl ()
+    elif args.adif :
         lu.check_adif (qslsdate = args.upload_date)
     else :
-        lu.check_qsl ()
+        lu.check_db_qsl_against_lotw ()
 # end def main
 
 if __name__ == '__main__' :
