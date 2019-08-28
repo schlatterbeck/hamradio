@@ -246,6 +246,19 @@ class LOTW_Downloader (object) :
                 sys.stdout.flush ()
     # end def find_qso_without_qsl
 
+    def export_adif_from_list (self, listfile) :
+        adif = ADIF ()
+        adif.header = 'ADIF export RSC-QSO'
+        with open (listfile) as f :
+            for line in f :
+                if line.startswith ('Call:') :
+                    line = line.split (' ', 1)[1]
+                date, call = line.split () [:2]
+                qso = self.uploader.find_qso (call, date)
+                adif.append (self.uploader.qso_as_adif (qso ['id']))
+        return adif
+    # end def export_adif_from_list
+
     def check_qsl (self) :
         """ Get all QSL starting with as qsl-s-date of the given DB
             cutoff date. Get the QSOs for these QSLs, too. Check them
@@ -298,6 +311,10 @@ def main () :
         , action  = 'store_true'
         )
     cmd.add_argument \
+        ( "--export-adif-from-list"
+        , help    = "Export list of <date, call> as adif"
+        )
+    cmd.add_argument \
         ( "-l", "--lotw-cutoff-date"
         , help    = "Check no QSLs from LOTS starting before that date,"
                     " default = %(default)s"
@@ -347,6 +364,9 @@ def main () :
         )
     if args.find_qso_without_qsl :
         lu.find_qso_without_qsl ()
+    elif args.export_adif_from_list :
+        adif = lu.export_adif_from_list (args.export_adif_from_list)
+        print (adif)
     elif args.adif :
         lu.check_adif (qslsdate = args.upload_date)
     else :
