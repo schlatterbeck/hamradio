@@ -348,7 +348,8 @@ class LOTW_Downloader (object) :
             if d :
                 if not self.dry_run :
                     self.uploader.put ('qso/%s' % q_id, json = d, etag = etag)
-                print ("%sQSO updated: %s" % (self.dryrun, d))
+                print \
+                    ("%sQSO %s %s updated: %s" % (self.dryrun, date, a.call, d))
     # end def check_qsl
 
 # end class LOTW_Downloader
