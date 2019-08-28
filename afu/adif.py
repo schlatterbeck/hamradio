@@ -171,6 +171,7 @@ class ADIF_Parse (autosuper) :
         return n in self.dict
     # end def __contains__
     has_key = __contains__
+
 # end class ADIF_Parse
 
 class ADIF_Record (ADIF_Parse) :
@@ -353,6 +354,11 @@ class ADIF (ADIF_Parse) :
     # end def __str__
     __unicode__ = __str__
     __repr__ = __str__
+
+    def __iter__ (self) :
+        for r in self.records :
+            yield r
+    # end def __iter__
 
 # end class ADIF
 
