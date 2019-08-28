@@ -193,8 +193,7 @@ class ADIF_Record (ADIF_Parse) :
         , 'gridsquare:4'
         ]
 
-    def __init__ (self, adif, fd, lineno, end_tag = 'eor', firstchar =
-    None, date_format = None) :
+    def __init__ (self, adif, fd, lineno, end_tag = 'eor', firstchar = None) :
         """ consume one record from fd """
         self.__super.__init__ (fd, lineno)
         self.end_tag  = end_tag
@@ -265,6 +264,7 @@ class ADIF_Record (ADIF_Parse) :
             return self [name]
         except KeyError as msg :
             raise AttributeError (str (msg))
+    # end def __getattr__
 
     def __contains__ (self, name) :
         n = name.lower ()
@@ -293,7 +293,7 @@ class ADIF (ADIF_Parse) :
 
     modemap = {}
 
-    def __init__ (self, fd, lineno = 1, callsign = None, ** kw) :
+    def __init__ (self, fd = None, lineno = 1, callsign = None, ** kw) :
         self.__super.__init__ (fd, lineno)
         self.eofmark  = None
         self.callsign = callsign
@@ -302,21 +302,22 @@ class ADIF (ADIF_Parse) :
             self.dict ['own_call'] = callsign
         self.by_call  = {}
         self.records  = []
-        c1 = fd.read (1)
-        if c1 != '<' :
-            self.get_header (firstchar = c1)
-            c1 = None
-        while (1) :
-            try :
-                r = ADIF_Record (self, fd, self.lineno, firstchar = c1)
-                self.records.append (r)
-                if getattr (r, 'call', None) :
-                    if r.call not in self.by_call :
-                        self.by_call [r.call] = []
-                    self.by_call [r.call].append (r)
+        if fd is not None :
+            c1 = fd.read (1)
+            if c1 != '<' :
+                self.get_header (firstchar = c1)
                 c1 = None
-            except ADIF_EOF :
-                break
+            while (1) :
+                try :
+                    r = ADIF_Record (self, fd, self.lineno, firstchar = c1)
+                    self.records.append (r)
+                    if getattr (r, 'call', None) :
+                        if r.call not in self.by_call :
+                            self.by_call [r.call] = []
+                        self.by_call [r.call].append (r)
+                    c1 = None
+                except ADIF_EOF :
+                    break
         if self.records :
             last = self.records [-1]
             key  = list (last.dict.keys ()) [0]
@@ -325,6 +326,12 @@ class ADIF (ADIF_Parse) :
                 self.eofmark = key
                 del self.records [-1]
     # end def __init__
+
+    def append (self, adif_record) :
+        self.records.append (adif_record)
+        self.by_call [adif_record.call] = adif_record
+        adif_record.adif = self
+    # end def append
 
     def as_cabrillo (self, fields = None, cabrillo = (), **kw) :
         s = []
@@ -348,6 +355,9 @@ class ADIF (ADIF_Parse) :
 
     def __str__ (self) :
         r = []
+        if self.header :
+            r.append (self.header)
+            r.append ('<eoh>')
         for rec in sorted (self.records, key = lambda x: x.get_date ()) :
             r.append (str (rec))
         return '\n\n'.join (r)
@@ -380,6 +390,23 @@ class TQ8 (ADIF_Parse) :
                 break
     # end def __init__
 # end class TQ8
+
+class Native_ADIF_Record (ADIF_Record) :
+
+    def __init__ (self, call, mode, qso_date, time_on, **kw) :
+        self.dict = dict \
+            ( call     = call
+            , mode     = mode
+            , qso_date = qso_date
+            , time_on  = time_on
+            )
+        # Only use values that are not empty
+        for k in kw :
+            if kw [k] is not None :
+                self.dict [k] = kw [k]
+    # end def __init__
+
+# end def Native_ADIF_Record
 
 def main () :
     cmd = ArgumentParser ()
