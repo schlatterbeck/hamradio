@@ -4,13 +4,14 @@ from __future__ import print_function
 import io
 import sys
 import requests
-from argparse     import ArgumentParser
-from datetime     import datetime
-from netrc        import netrc
-from getpass      import getpass
-from afu          import requester
-from afu.adif     import ADIF
-from afu.dbimport import ADIF_Uploader
+from argparse        import ArgumentParser
+from datetime        import datetime
+from netrc           import netrc
+from getpass         import getpass
+from rsclib.pycompat import text_type
+from afu             import requester
+from afu.adif        import ADIF
+from afu.dbimport    import ADIF_Uploader
 try :
     from urllib.parse import urlparse, quote_plus, urlencode
 except ImportError:
@@ -63,6 +64,7 @@ class LOTW_Query (requester.Requester) :
             uploaded to LOTW, not the startdate/starttime of the QSO.
             We directly return an ADIF object.
         """
+        d = {}
         for a in args :
             d ['qso_' + a] = args [a]
         d ['login']          = self.user
@@ -130,11 +132,6 @@ class LOTW_Downloader (object) :
             return
 
         ladif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
-        #with io.open ('zoppel3', 'w', encoding = 'utf-8') as f :
-        #    f.write (adif)
-        # For now get downloaded file
-        #with io.open ('zoppel3', 'r', encoding = 'utf-8') as f :
-        #    ladif  = ADIF (f)
         ladif.set_date_format (self.uploader.date_format)
 
         for r in self.adif.records :
@@ -151,7 +148,8 @@ class LOTW_Downloader (object) :
             if self.verbose :
                 print ("Found %s in lotw" % r.call)
             # look it up in DB
-            qsl = self.uploader.find_qsl (r.call, r.get_date (), type = 'LOTW')
+            qsl = self.uploader.find_qsl \
+                (r.call, r.get_date (), type = 'LOTW', mode = r.get_mode ())
             if not qsl :
                 if self.verbose :
                     print ("Call: %s not found in DB" % r.call)
@@ -227,7 +225,8 @@ class LOTW_Downloader (object) :
         adif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
         adif.set_date_format (self.uploader.date_format)
         for n, a in enumerate (adif) :
-            qsl = self.uploader.find_qsl (a.call, a.get_date (), type = 'LOTW')
+            qsl = self.uploader.find_qsl \
+                (a.call, a.get_date (), type = 'LOTW', mode = a.get_mode ())
             if not qsl :
                 print ("Call: %s: no LOTW QSL found in DB" % a.call)
                 print (a)
@@ -235,6 +234,26 @@ class LOTW_Downloader (object) :
                 print ("%s: found: %s         " % (n, a.call), end = '\r')
                 sys.stdout.flush ()
     # end def check_lotw_qso_against_qsl
+
+    def check_lotw_dupes (self) :
+        adif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
+        adif.set_date_format (self.uploader.date_format)
+        for k, key in enumerate (adif.by_call) :
+            calls = adif.by_call [key]
+            if len (calls) == 1 :
+                c = calls [0]
+                if self.verbose :
+                    print ("%s: no dupe: %s       " % (k, c.call), end = '\r')
+                    sys.stdout.flush ()
+                continue
+            for n, c1 in enumerate (calls) :
+                for c2 in calls [n+1:] :
+                    assert c1.call == c2.call
+                    if c1.get_date () == c2.get_date () :
+                        print ("Duplicate LOTW record:")
+                        print ("First:\n",  c1)
+                        print ("Second:\n", c2)
+    # end def check_lotw_dupes
 
     def find_qso_without_qsl (self) :
         """ Loop over all QSOs and find those that do not have a
@@ -277,13 +296,60 @@ class LOTW_Downloader (object) :
     # end def export_adif_from_list
 
     def check_qsl (self) :
-        """ Get all QSL starting with as qsl-s-date of the given DB
-            cutoff date. Get the QSOs for these QSLs, too. Check them
-            one-by-one against the QSLs from LOTW.
+        """ Get all QSL from LOTW with given lotw_cutoff date.
+            Check them all against DB:
+            Find QSL, check qsl received time against local DB
+            it's an error if QSL is not found (the qsl record should
+            have been created when submitted to lotw).
         """
-        #lotw_qsl = self.
-        #adif = self.lotwq.get_qsl (since = self.lotw_cutoff, mydetail = 'yes')
-        pass
+        adif = self.lotwq.get_qsl (since = self.lotw_cutoff, mydetail = 'yes')
+        adif.set_date_format (self.uploader.date_format)
+        for a in adif :
+            date = a.get_date ()
+            qsl = self.uploader.find_qsl \
+                (a.call, date, type = 'LOTW', mode = a.get_mode ())
+            if not qsl :
+                print ('Error: QSL not found: %s %s' % (date, a.call))
+                continue
+            if not qsl ['date_recv'] :
+                print \
+                    ( "%sQSL received, updating: %s %s date: %s"
+                    % (self.dryrun, date, a.call, a.get_qsl_rdate ())
+                    )
+                q  = self.uploader.get ('qsl/%s' % qsl ['id'])
+                q  = q ['data']
+                if not self.dry_run :
+                    d = dict (date_recv = a.get_qsl_rdate ())
+                    self.uploader.put \
+                        ('qsl/%s' % qsl ['id'], json = d, etag = q ['@etag'])
+            elif qsl ['date_recv'][:10] != a.get_qsl_rdate ()[:10] :
+                # We only compare the date, not the time
+                # (time is always empty in LOTW)
+                print \
+                    ( "QSL receive time not matching: %s %s %s vs %s"
+                    % (date, a.call, qsl ['date_sent'], a.get_qsl_rdate ())
+                    )
+            qso  = self.uploader.get ('qso/%s' % qsl ['qso']['id'])
+            qso  = qso ['data']
+            etag = qso ['@etag']
+            q_id = qso ['id']
+            qso  = qso ['attributes']
+            fields = dict (iota = 'iota', cqz = 'cq_zone', ituz = 'itu_zone')
+            d = {}
+            for k in fields :
+                if k in a :
+                    if not qso [fields [k]] :
+                        d [fields [k]] = a [k]
+                    elif text_type (qso [fields [k]]) != text_type (a [k]) :
+                        print \
+                            ("QSO %s %s Field %s differs: %s vs %s"
+                            % (date, a.call, k, qso [fields [k]], a [k])
+                            )
+            if d :
+                if not self.dry_run :
+                    self.uploader.put ('qso/%s' % q_id, json = d, etag = etag)
+                print ("%sQSO updated: %s" % (self.dryrun, d))
+    # end def check_qsl
 
 # end class LOTW_Downloader
 
@@ -310,6 +376,19 @@ def main () :
     cmd.add_argument \
         ( "--check-lotw-qso-against-qsl"
         , help    = "Loop over all LOTW QSOs and check if LOTW-QSL is in DB"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
+        ( "--check-lotw-dupes"
+        , help    = "Loop over all LOTW QSOs and check if there are"
+                    " duplicate call/start-date/start-time entries"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
+        ( "--check-qsl"
+        , help    = "Check QSLs in LOTW against local DB."
+                    " Compare times and iota, cq-zone, itu-zone infos."
+                    " Create if missing."
         , action  = 'store_true'
         )
     cmd.add_argument \
@@ -391,6 +470,10 @@ def main () :
         print (adif)
     elif args.check_lotw_qso_against_qsl :
         lu.check_lotw_qso_against_qsl ()
+    elif args.check_lotw_dupes :
+        lu.check_lotw_dupes ()
+    elif args.check_qsl :
+        lu.check_qsl ()
     elif args.adif :
         lu.check_adif (qslsdate = args.upload_date)
     else :
