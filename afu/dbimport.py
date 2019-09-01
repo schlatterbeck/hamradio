@@ -337,7 +337,7 @@ def main () :
         )
     cmd.add_argument \
         ( "-c", "--call"
-        , help    = "Location name to use for local DB"
+        , help    = "Location name to use for local DB, default=%(default)s"
         , default = 'OE3RSU Weidling'
         )
     cmd.add_argument \
