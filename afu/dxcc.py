@@ -294,6 +294,11 @@ class DXCC_File (autosuper) :
 def main () :
     cmd = ArgumentParser ()
     cmd.add_argument \
+        ( "callsign"
+        , help    = "Callsign to look up"
+        , nargs   = '*'
+        )
+    cmd.add_argument \
         ( "-u", "--url"
         , help    = "URL of DXCC List, default=%(default)s"
         , default = DXCC_File.url
@@ -301,16 +306,19 @@ def main () :
     args = cmd.parse_args ()
     df   = DXCC_File (url = args.url)
     df.parse ()
-    for l in df.dxcc_list :
-        #print l.entity_type
-        if l.entity_type == 'CURRENT' :
-            for e in l.entries :
-                print (e)
+    #for l in df.dxcc_list :
+    #    #print l.entity_type
+    #    if l.entity_type == 'CURRENT' :
+    #        for e in l.entries :
+    #            print (e)
     current = df.by_type ['CURRENT']
-    for cs in 'OE3RSU', 'DL/OE3RSU', 'OE3RSU/3' :
+    for cs in args.callsign :
         entities = current.callsign_lookup (cs)
-        for e in entities :
-            print ("%s: %s" % (cs, e.name))
+        if not entities :
+            print ("%s: NOT FOUND" % cs)
+        else :
+            for e in entities :
+                print ("%s: %s" % (cs, e.name))
 # end def main
 
 if __name__ == '__main__' :
