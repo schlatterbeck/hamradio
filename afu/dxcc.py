@@ -143,10 +143,21 @@ class DXCC_Parser (Parser) :
         self.head_text = []
         self.crossref  = {}
         self.entries   = []
+        self.prefix    = {}
         self.notes     = {}
         self.lastnote  = None
+        self.prf_max   = 0
         self.__super.__init__ (*args, **kw)
     # end def __init__
+
+    def callsign_lookup (self, callsign) :
+        for n in reversed (range (self.prf_max)) :
+            pfx = callsign [:n+1]
+            if pfx in self.prefix :
+                return self.prefix [pfx]
+    # end def callsign_lookup
+
+    # Parsing methods below this line
 
     def add_list_entry (self, state, new_state, match) :
         g = match.groups ()
@@ -166,7 +177,7 @@ class DXCC_Parser (Parser) :
             p = p.rstrip ('#').rstrip ('*').rstrip ('#').rstrip ('*')
         if '_' in p :
             p, o = p.split ('_', 1)
-        e = DXCC_Entry (g [5], g [1], g [2], g [3], g [4])
+        e = DXCC_Entry (g [5], g [1].rstrip (), g [2], g [3], g [4])
         # Same crossref can be used for several entities
         for c in cross :
             if c not in self.crossref :
@@ -196,6 +207,12 @@ class DXCC_Parser (Parser) :
         p = newp
         e.prefixes = p
         self.entries.append (e)
+        for prf in e.prefixes :
+            if prf not in self.prefix :
+                self.prefix [prf] = []
+            self.prefix [prf].append (e)
+            if len (prf) > self.prf_max :
+                self.prf_max = len (prf)
     # end def add_list_entry
 
     def add_note (self, state, new_state, match) :
@@ -243,6 +260,8 @@ class DXCC_File (autosuper) :
         if url is not None :
             self.url = url
         self.session = requests.session ()
+        self.dxcc_list = []
+        self.by_type   = {}
     # end def __init__
 
     def parse (self) :
@@ -257,12 +276,17 @@ class DXCC_File (autosuper) :
         t = t.split (h)
         assert len (t) > 1
         self.dxcc_list = []
+        self.by_type   = {}
         for k in t :
             if not k.strip () :
                 continue
             with io.StringIO (h + k) as f :
                 self.dxcc_list.append (DXCC_Parser ())
                 self.dxcc_list [-1].parse (f)
+        for l in self.dxcc_list :
+            t = l.entity_type
+            assert t not in self.by_type
+            self.by_type [t] = l
     # end def parse
 
 # end class DXCC_File
@@ -278,8 +302,15 @@ def main () :
     df   = DXCC_File (url = args.url)
     df.parse ()
     for l in df.dxcc_list :
-        for e in l.entries :
-            print (e)
+        #print l.entity_type
+        if l.entity_type == 'CURRENT' :
+            for e in l.entries :
+                print (e)
+    current = df.by_type ['CURRENT']
+    for cs in 'OE3RSU', 'DL/OE3RSU', 'OE3RSU/3' :
+        entities = current.callsign_lookup (cs)
+        for e in entities :
+            print ("%s: %s" % (cs, e.name))
 # end def main
 
 if __name__ == '__main__' :
