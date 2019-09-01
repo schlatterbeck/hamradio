@@ -302,6 +302,12 @@ class LOTW_Downloader (object) :
             it's an error if QSL is not found (the qsl record should
             have been created when submitted to lotw).
         """
+        dxcc = self.uploader.get ('dxcc_entity?@fields=code')
+        dxcc = dxcc ['data']['collection']
+        dxcc_by_id = {}
+        for entry in dxcc :
+            dxcc_by_id [entry ['id']] = entry ['code']
+
         adif = self.lotwq.get_qsl (since = self.lotw_cutoff, mydetail = 'yes')
         adif.set_date_format (self.uploader.date_format)
         for a in adif :
@@ -334,17 +340,44 @@ class LOTW_Downloader (object) :
             etag = qso ['@etag']
             q_id = qso ['id']
             qso  = qso ['attributes']
-            fields = dict (iota = 'iota', cqz = 'cq_zone', ituz = 'itu_zone')
+
+            fields = dict \
+                ( iota = 'iota'
+                , cqz  = 'cq_zone'
+                , ituz = 'itu_zone'
+                , dxcc = 'dxcc_entity'
+                )
             d = {}
             for k in fields :
                 if k in a :
-                    if not qso [fields [k]] :
-                        d [fields [k]] = a [k]
-                    elif text_type (qso [fields [k]]) != text_type (a [k]) :
+                    f = qso [fields [k]]
+                    v = a [k]
+                    if isinstance (f, type ({})) :
+                        f = dxcc_by_id [f ['id']]
+                    if k == 'dxcc' :
+                        v = "%03d" % int (a [k])
+                    if not f :
+                        d [fields [k]] = v
+                    elif text_type (f) != text_type (v) :
+                        if k == 'dxcc' :
+                            # Update dxcc in any case
+                            d [fields [k]] = v
                         print \
                             ("QSO %s %s Field %s differs: %s vs %s"
-                            % (date, a.call, k, qso [fields [k]], a [k])
+                            % (date, a.call, k, f, v)
                             )
+#            if 'dxcc' in a :
+#                e = self.uploader.get \
+#                    ('dxcc_entity?code:=%03d' % int (a ['dxcc']))
+#                e = e ['data']['collection']
+#                assert len (e) == 1
+#                id = e [0]['id']
+#                if qso ['dxcc_entity'] and qso ['dxcc_entity']['id'] != id:
+#                    print \
+#                            ("QSO %s %s Field DXCC entity differs: %s vs %s"
+#                            % (date, a.call, qso ['dxcc_entity']['id'], id)
+#                            )
+#                d ['dxcc_entity'] = id
             if d :
                 if not self.dry_run :
                     self.uploader.put ('qso/%s' % q_id, json = d, etag = etag)
