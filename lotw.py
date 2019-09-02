@@ -304,9 +304,11 @@ class LOTW_Downloader (object) :
         """
         dxcc = self.uploader.get ('dxcc_entity?@fields=code')
         dxcc = dxcc ['data']['collection']
-        dxcc_by_id = {}
+        dxcc_by_id   = {}
+        dxcc_by_code = {}
         for entry in dxcc :
-            dxcc_by_id [entry ['id']] = entry ['code']
+            dxcc_by_id   [entry ['id']]   = entry ['code']
+            dxcc_by_code [entry ['code']] = entry ['id']
 
         adif = self.lotwq.get_qsl (since = self.lotw_cutoff, mydetail = 'yes')
         adif.set_date_format (self.uploader.date_format)
@@ -351,33 +353,22 @@ class LOTW_Downloader (object) :
             for k in fields :
                 if k in a :
                     f = qso [fields [k]]
-                    v = a [k]
+                    v = val = a [k]
                     if isinstance (f, type ({})) :
                         f = dxcc_by_id [f ['id']]
                     if k == 'dxcc' :
                         v = "%03d" % int (a [k])
+                        val = dxcc_by_code [v]
                     if not f :
-                        d [fields [k]] = v
+                        d [fields [k]] = val
                     elif text_type (f) != text_type (v) :
                         if k == 'dxcc' :
                             # Update dxcc in any case
-                            d [fields [k]] = v
+                            d [fields [k]] = val
                         print \
                             ("QSO %s %s Field %s differs: %s vs %s"
                             % (date, a.call, k, f, v)
                             )
-#            if 'dxcc' in a :
-#                e = self.uploader.get \
-#                    ('dxcc_entity?code:=%03d' % int (a ['dxcc']))
-#                e = e ['data']['collection']
-#                assert len (e) == 1
-#                id = e [0]['id']
-#                if qso ['dxcc_entity'] and qso ['dxcc_entity']['id'] != id:
-#                    print \
-#                            ("QSO %s %s Field DXCC entity differs: %s vs %s"
-#                            % (date, a.call, qso ['dxcc_entity']['id'], id)
-#                            )
-#                d ['dxcc_entity'] = id
             if d :
                 if not self.dry_run :
                     self.uploader.put ('qso/%s' % q_id, json = d, etag = etag)
