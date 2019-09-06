@@ -13,12 +13,15 @@ from rsclib.autosuper import autosuper
 class Requester (autosuper) :
 
     def __init__ (self, url, username, password = None, **kw) :
-        self.session  = requests.session ()
-        self.url      = url
-        self.username = username
-        self.password = password
-        self.headers  = {}
-        self._pw      = None
+        self.session     = requests.session ()
+        self.url         = url
+        self.username    = username
+        self.password    = password
+        self.headers     = {}
+        self._pw         = None
+        self.relax_check = False
+        if kw.get ('relax_username_check', False) :
+            self.relax_check = True
         self.__super.__init__ (**kw)
     # end def __init__
 
@@ -53,7 +56,7 @@ class Requester (autosuper) :
             a = n.authenticators (t.netloc)
         if a :
             un, d, pw = a
-            if un != self.username :
+            if not self.relax_check and un != self.username :
                 raise ValueError ("Netrc username doesn't match")
             self._pw = pw
             return pw
