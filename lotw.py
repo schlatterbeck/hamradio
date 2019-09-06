@@ -22,7 +22,7 @@ class LOTW_Query (requester.Requester) :
         self.__super.__init__ (self.url, username, password)
     # end def __init__
 
-    def get_qso (self, since = '2010-01-01', **args) :
+    def get_qso (self, since = None, **args) :
         """ Get QSOs for the given parameters.
             Parameters are automagically prefixed with 'qso_'
             Allowed values according to
@@ -40,14 +40,15 @@ class LOTW_Query (requester.Requester) :
         d ['password']       = self.get_pw ()
         d ['qso_qsl']        = 'no'
         d ['qso_query']      = 1
-        d ['qso_qsorxsince'] = since
+        if since :
+            d ['qso_qsorxsince'] = since.strftime ('%Y-%m-%d')
         t = self.get ('?' + urlencode (d), as_text = True)
         with io.StringIO (t) as f :
             adif = ADIF (f)
         return adif
     # end def get_qso
 
-    def get_qsl (self, since = '2010-01-01', **args) :
+    def get_qsl (self, since = None, **args) :
         """ Get QSLs for the given parameters.
             Parameters are automagically prefixed with 'qso_'
             according the the lotw API.
@@ -55,7 +56,7 @@ class LOTW_Query (requester.Requester) :
             https://lotw.arrl.org/lotw-help/developer-query-qsos-qsls/
             are owncall, callsign, mode, band, startdate, starttime,
             enddate, endtime, mydetail, withown.
-            Note that the 'since' parameter specifies the date QSO were
+            Note that the 'since' parameter specifies the date QSL were
             uploaded to LOTW, not the startdate/starttime of the QSO.
             We directly return an ADIF object.
         """
@@ -66,7 +67,8 @@ class LOTW_Query (requester.Requester) :
         d ['password']       = self.get_pw ()
         d ['qso_qsl']        = 'yes'
         d ['qso_query']      = 1
-        d ['qso_qslsince']   = since
+        if since :
+            d ['qso_qslsince'] = since.strftime ('%Y-%m-%d')
         d ['qso_qsldetail']  = 'yes'
         t = self.get ('?' + urlencode (d), as_text = True)
         with io.StringIO (t) as f :
