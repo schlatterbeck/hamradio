@@ -359,6 +359,8 @@ class LOTW_Downloader (object) :
                     if k == 'dxcc' :
                         v = "%03d" % int (a [k])
                         val = dxcc_by_code [v]
+                    if k == 'cqz' or k == 'ituz' :
+                        v = int (a [k], 10)
                     if not f :
                         d [fields [k]] = val
                     elif text_type (f) != text_type (v) :
