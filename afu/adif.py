@@ -134,15 +134,18 @@ class ADIF_Parse (autosuper) :
                         count = int (v)
                     except ValueError :
                         c1, c2 = v.split (':', 1)
-                        # TQ8 has some weirdness for SIGN_LOTW_V1.0 tag
-                        try :
+                        if c2.lower () in ('d',) :
                             count = int (c1)
-                            c2    = int (c2)
-                        except ValueError :
-                            raise ADIF_Syntax_Error \
-                                ( '%s: Invalid count: %s'
-                                % (self.lineno, ''.join (value))
-                                )
+                        else :
+                            # TQ8 has some weirdness for SIGN_LOTW_V1.0 tag
+                            try :
+                                count = int (c1)
+                                c2    = int (c2)
+                            except ValueError :
+                                raise ADIF_Syntax_Error \
+                                    ( '%s: Invalid count: %s'
+                                    % (self.lineno, ''.join (value))
+                                    )
                     value = []
                     state = 'value'
                 else :
