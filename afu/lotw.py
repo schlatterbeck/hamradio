@@ -7,11 +7,11 @@ from argparse        import ArgumentParser
 from rsclib.pycompat import text_type
 from afu             import requester
 from afu.adif        import ADIF
-from afu.dbimport    import ADIF_Uploader
 try :
     from urllib.parse import urlencode
 except ImportError:
-    from urllib   import quote as urlencode
+    from urllib   import quote as quote_plus
+    from urllib   import urlencode
 
 class LOTW_Query (requester.Requester) :
 
