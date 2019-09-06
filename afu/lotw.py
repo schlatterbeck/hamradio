@@ -119,72 +119,6 @@ class LOTW_Downloader (object) :
             self.dryrun = '[dry run] '
     # end def __init__
 
-    def check_adif (self, qslsdate = None) :
-        """ Match QSOs and check if LOTW-QSL exists
-            Update date if it is given and does not match
-            Create QSL if it doesn't exist and a date is given
-        """
-        if not self.adif :
-            print ("No ADIF file specified")
-            return
-
-        ladif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
-        ladif.set_date_format (self.uploader.date_format)
-
-        for r in self.adif.records :
-            ds = r.get_date ()
-            if ds <= self.cutoff :
-                continue
-            calls = ladif.by_call.get (r.call, [])
-            for lc in calls :
-                if lc.get_date () == r.get_date () :
-                    break
-            else :
-                print ("Call: %s not in lotw" % r.call)
-                continue
-            if self.verbose :
-                print ("Found %s in lotw" % r.call)
-            # look it up in DB
-            qsl = self.uploader.find_qsl \
-                (r.call, r.get_date (), type = 'LOTW', mode = r.get_mode ())
-            if not qsl :
-                if self.verbose :
-                    print ("Call: %s not found in DB" % r.call)
-                # Search QSO
-                qso = self.uploader.find_qso (r.call, r.get_date ())
-                if not qso :
-                    print ("Call: %s QSO not found in DB!!!!!" % r.call)
-                    continue
-                if self.verbose :
-                    print ("Found QSO")
-                if qslsdate :
-                    d = dict \
-                        ( qso       = qso ['id']
-                        , date_sent = qslsdate
-                        , qsl_type  = 'LOTW'
-                        )
-                    if not self.dry_run :
-                        result = self.uploader.post ('qsl', json = d)
-                    print ("%sCall %s: Created QSL" % (self.dryrun, r.call))
-                continue
-            if self.verbose :
-                print ("Found %s in DB" % r.call)
-            if qslsdate :
-                if qslsdate != qsl ['date_sent'] :
-                    print \
-                        ( "Dates do not match: %s in DB vs %s requested"
-                        % (qsl ['date_sent'], qslsdate)
-                        )
-                    q = self.uploader.get ('qsl/%s' % qsl ['id'])
-                    etag = q ['data']['@etag']
-                    if not self.dry_run :
-                        r = self.uploader.put \
-                            ( 'qsl/%s' % qsl ['id']
-                            , json = dict (date_sent = qslsdate)
-                            , etag = etag
-                            )
-    # end def check_adif
-
     def check_db_qsl_against_lotw (self) :
         """ Get all DB records since the db cutoff (qsl-sent-date).
             Retrieve all QSOs from LOTW since that cutoff date (the
@@ -251,33 +185,6 @@ class LOTW_Downloader (object) :
                         print ("First:\n",  c1)
                         print ("Second:\n", c2)
     # end def check_lotw_dupes
-
-    def find_qso_without_qsl (self) :
-        """ Loop over all QSOs and find those that do not have a
-            corresponding LOTW QSL. Use the cutoff date for selecting
-            the qso_start.
-        """
-        cut = self.uploader.format_date (self.cutoff)
-        qso = self.uploader.get \
-            ('qso?qso_start=%s&@fields=call,qso_start,swl' % cut)
-        qso = qso ['data']['collection']
-        for n, q in enumerate (qso) :
-            call = q ['call']
-            qsl = self.uploader.get ('qsl?qso=%s&qsl_type=LOTW' % q ['id'])
-            qsl = qsl ['data']['collection']
-            assert len (qsl) <= 1
-            if not qsl :
-                if q ['swl'] :
-                    print ("%s: %s: SWL       " % (n, call))
-                else :
-                    print \
-                        ( "Call: %s %s has no LOTW qsl"
-                        % (q ['qso_start'], call)
-                        )
-            elif self.verbose :
-                print ("%s: found: %s         " % (n, call), end = '\r')
-                sys.stdout.flush ()
-    # end def find_qso_without_qsl
 
     def export_adif_from_list (self, listfile) :
         adif = ADIF ()
@@ -499,7 +406,7 @@ def main () :
     elif args.check_qsl :
         lu.check_qsl ()
     elif args.adif :
-        lu.check_adif (qslsdate = args.upload_date)
+        pass
     else :
         lu.check_db_qsl_against_lotw ()
 # end def main

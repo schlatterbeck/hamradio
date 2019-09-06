@@ -54,6 +54,12 @@ class Log_Mixin (autosuper) :
             print (*args)
     # end def info
 
+    def animate_info (self, *args) :
+        if self.verbose :
+	    print (*args, end = '\r')
+	    sys.stdout.flush ()
+    # end def animate_info
+
     def notice (self, *args) :
         print (self.dryrun, end = '')
         print (*args)
@@ -408,6 +414,10 @@ class DB_Importer (Log_Mixin) :
     # end def do_import
 
     def do_check_adif (self) :
+        """ Match QSOs and check that QSL exists for specified qsl_type
+            Update date if it is given and does not match
+            Create QSL if it doesn't exist, a date must be given
+        """
         qtype    = self.args.qsl_type
         qslsdate = self.args.upload_date
         cutoff   = None
@@ -469,6 +479,36 @@ class DB_Importer (Log_Mixin) :
                             , etag = etag
                             )
     # end def do_check_adif
+
+    def do_find_qso_without_qsl (self) :
+        """ Loop over all QSOs and find those that do not have a
+            corresponding logbook-app QSL. Use the cutoff date for
+            selecting the qso_start.
+        """
+        qtype = self.args.qsl_type
+        d = { '@fields' : 'call,qso_start,swl'
+            , 'owner'   : self.au.id_call
+        }
+        if self.cutoff :
+            d ['qso_start'] = self.cutoff.strftime (self.au.date_format)
+        qso = self.au.get ('qso?' + urlencode (d))
+        qso = qso ['data']['collection']
+        for n, q in enumerate (qso) :
+            call = q ['call']
+            qsl = self.au.get ('qsl?qso=%s&qsl_type=%s' % (q ['id'], qtype))
+            qsl = qsl ['data']['collection']
+            assert len (qsl) <= 1
+            if not qsl :
+                if q ['swl'] :
+                    self.notice ("%s: %s: SWL       " % (n, call))
+                else :
+                    self.notice \
+                        ( "Call: %s %s has no %s qsl"
+                        % (q ['qso_start'], call, qtype)
+                        )
+	    else :
+		self.animate_info ("%s: found: %s         " % (n, call))
+    # end def do_find_qso_without_qsl
 
 # end class DB_Importer
 
