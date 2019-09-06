@@ -480,6 +480,27 @@ class DB_Importer (Log_Mixin) :
                             )
     # end def do_check_adif
 
+    def do_export_adif_from_list (self) :
+        """ Needs listfile option, this contains a listing that is
+            output by the find_qso_without_qsl check of the form
+            Call: <date.time> Callsign not in <logservice>
+            e.g.
+            Call: 2011-06-16.08:53:00 CALLSIGN not in lotw
+            This is parsed and an ADIF is generated for upload into the
+            respective logging service.
+        """
+        adif = ADIF ()
+        adif.header = 'ADIF export RSC-QSO'
+        with open (self.args.listfile) as f :
+            for line in f :
+                if line.startswith ('Call:') :
+                    line = line.split (' ', 1)[1]
+                date, call = line.split () [:2]
+                qso = self.au.find_qso (call, date)
+                adif.append (self.au.qso_as_adif (qso ['id']))
+        print (adif)
+    # end def do_export_adif_from_list
+
     def do_find_qso_without_qsl (self) :
         """ Loop over all QSOs and find those that do not have a
             corresponding logbook-app QSL. Use the cutoff date for
@@ -562,6 +583,11 @@ def main () :
         , help    = "eQSL Password, better use .netrc"
         )
     cmd.add_argument \
+        ( "--listfile"
+        , help    = "File listing QSL records missing in DB"
+                    " needed for export_adif_from_list command"
+        )
+    cmd.add_argument \
         ( "-L", "--lotw-username"
         , help    = "LOTW Username"
         , default = 'oe3rsu'
@@ -607,6 +633,7 @@ def main () :
     try :
         db.execute ()
     except ValueError as e :
+        raise
         print ("Error:", e)
 # end def main
 

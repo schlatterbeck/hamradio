@@ -186,19 +186,6 @@ class LOTW_Downloader (object) :
                         print ("Second:\n", c2)
     # end def check_lotw_dupes
 
-    def export_adif_from_list (self, listfile) :
-        adif = ADIF ()
-        adif.header = 'ADIF export RSC-QSO'
-        with open (listfile) as f :
-            for line in f :
-                if line.startswith ('Call:') :
-                    line = line.split (' ', 1)[1]
-                date, call = line.split () [:2]
-                qso = self.uploader.find_qso (call, date)
-                adif.append (self.uploader.qso_as_adif (qso ['id']))
-        return adif
-    # end def export_adif_from_list
-
     def check_qsl (self) :
         """ Get all QSL from LOTW with given lotw_cutoff date.
             Check them all against DB:
@@ -396,9 +383,6 @@ def main () :
         )
     if args.find_qso_without_qsl :
         lu.find_qso_without_qsl ()
-    elif args.export_adif_from_list :
-        adif = lu.export_adif_from_list (args.export_adif_from_list)
-        print (adif)
     elif args.check_lotw_qso_against_qsl :
         lu.check_lotw_qso_against_qsl ()
     elif args.check_lotw_dupes :
