@@ -13,10 +13,10 @@ from afu             import requester
 from afu.adif        import ADIF
 from afu.dbimport    import ADIF_Uploader
 try :
-    from urllib.parse import urlparse, quote_plus, urlencode
+    from urllib.parse import urlparse, urlencode
 except ImportError:
     from urlparse import urlparse
-    from urllib   import quote as quote_plus, urlencode
+    from urllib   import quote as urlencode
 
 class LOTW_Query (requester.Requester) :
 
