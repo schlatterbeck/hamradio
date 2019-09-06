@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import io
+import sys
 import requests
 from argparse import ArgumentParser
 from datetime import datetime
@@ -9,6 +10,8 @@ from netrc    import netrc
 from getpass  import getpass
 from afu      import requester
 from afu.adif import ADIF, Native_ADIF_Record
+from afu.lotw import LOTW_Query
+from afu.eqsl import EQSL_Query
 try :
     from urllib.parse import urlparse, quote_plus, urlencode
 except ImportError:
@@ -137,7 +140,7 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
     # end def qso_as_adif
 
     def find_qsl (self, call, qsodate, type = None, mode = None) :
-        d = self.format_date (qsodate, qsodate)
+        d = self.mangle_date (qsodate)
         s = 'qsl?@fields=date_sent,date_recv,qso&qso.call:=%s&qso.qso_start=%s'
         s = s % (call, d)
         if type :
@@ -157,7 +160,7 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
     # end def find_qsl
 
     def find_qso (self, call, qsodate) :
-        d = self.format_date (qsodate, qsodate)
+        d = self.mangle_date (qsodate)
         s = 'qso?@fields=call&call:=%s&qso_start=%s'
         s = s % (call, d)
         r = self.get (s) ['data']['collection']
@@ -165,6 +168,17 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
         if len (r) == 1 :
             return r [0]
     # end def find_qso
+
+    def mangle_date (self, date) :
+        """ Compute a date range.
+            Typically dates should include the second. But if the date
+            string is shorter and includes no seconds, we add seconds
+            for the end-date of the range (59 should be fine).
+        """
+        if len (date) == 16 :
+            return self.format_date (date, date + ':59')
+        return self.format_date (date, date)
+    # end def mangle_date
 
     @staticmethod
     def format_date (date1, date2 = None) :
@@ -303,8 +317,10 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
     # end def import_adif
 
     def set_call (self, call) :
-        call = self.get \
-            ('ham_call?name:=%s&@fields=name,call,gridsquare' % call)
+        d = { 'name:'   : call
+            , '@fields' : 'name,call,gridsquare,eqsl_nickname'
+            }
+        call = self.get ('ham_call?' + urlencode (d))
         collection = call ['data']['collection']
         if len (collection) == 0 :
             raise ValueError ('Invalid call: %s' % call)
@@ -336,9 +352,14 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
 
 # end class ADIF_Uploader
 
-class DB_Importer (object) :
+class DB_Importer (Log_Mixin) :
+
+    # Minutes only for qso start comparison, some logging services
+    # ignore minutes
+    minute_date_format = '%Y-%m-%d.%H:%M'
 
     def __init__ (self, args) :
+        self.__super.__init__ (args.dry_run, args.verbose)
         self.args = args
         self.au = ADIF_Uploader \
             ( args.url
@@ -348,16 +369,30 @@ class DB_Importer (object) :
             , args.verbose
             , args.antenna
             )
-        self.au.set_call        (args.call)
+        self.au.set_call (args.call)
         cutoff = None
 	if args.cutoff_date :
             cutoff = parse_cutoff (args.cutoff_date)
         self.cutoff = cutoff
+        self.adif = None
         if args.adiffile :
             with io.open (args.adiffile, 'r', encoding = args.encoding) as f :
-                adiffile = ADIF (f)
-                adiffile.set_date_format (self.au.date_format)
-                self.adiffile = adiffile
+                adif = ADIF (f)
+                adif.set_date_format (self.au.date_format)
+                self.adif = adif
+        self.logbook = None
+        if args.qsl_type :
+            if args.qsl_type == 'LOTW' :
+                self.logbook = LOTW_Query \
+                    (args.lotw_username, args.lotw_password)
+            elif args.qsl_type == 'eQSL' :
+                self.logbook = EQSL_Query \
+                    ( self.au.call ['eqsl_nickname']
+                    , self.au.call ['call'] # need to use call as username!
+                    , args.eqsl_password
+                    )
+            else :
+                assert 0
     # end def __init__
 
     def execute (self) :
@@ -369,13 +404,77 @@ class DB_Importer (object) :
 
     def do_import (self) :
         self.au.set_cutoff_date (self.cutoff)
-        self.au.import_adif (self.adiffile)
+        self.au.import_adif (self.adif)
     # end def do_import
+
+    def do_check_adif (self) :
+        qtype    = self.args.qsl_type
+        qslsdate = self.args.upload_date
+        cutoff   = None
+        if self.cutoff :
+            cutoff = self.cutoff.strftime ('%Y-%m-%d.%H:%M:%S')
+        if not qslsdate :
+            raise ValueError ("Need QSL Sent date")
+        if not self.adif :
+            raise ValueError ("No ADIF file specified")
+        self.adif.set_date_format (self.minute_date_format)
+        ladif = self.logbook.get_qso (since = self.cutoff, mydetail = 'yes')
+        ladif.set_date_format (self.minute_date_format)
+        for r in self.adif.records :
+            ds = r.get_date ()
+            if cutoff and ds <= cutoff :
+                continue
+            calls = ladif.by_call.get (r.call, [])
+            for lc in calls :
+                if lc.get_date () == r.get_date () :
+                    break
+            else :
+                self.notice ("Call: %s not in %s" % (r.call, qtype))
+                continue
+            self.info ("Found %s in %s" % (r.call, qtype))
+            # look it up in DB
+            qsl = self.au.find_qsl \
+                (r.call, r.get_date (), type = qtype, mode = r.get_mode ())
+            if not qsl :
+                self.info ("Call: %s not found in DB" % r.call)
+                # Search QSO
+                qso = self.au.find_qso (r.call, r.get_date ())
+                if not qso :
+                    self.notice ("Call: %s QSO not found in DB!!!!!" % r.call)
+                    continue
+                self.info ("Found QSO")
+                if qslsdate :
+                    d = dict \
+                        ( qso       = qso ['id']
+                        , date_sent = qslsdate
+                        , qsl_type  = qtype
+                        )
+                    if not self.args.dry_run :
+                        result = self.au.post ('qsl', json = d)
+                    self.notice ("Call %s: Created QSL" % (r.call))
+                continue
+            self.info ("Found %s in DB" % r.call)
+            if qslsdate :
+                if qslsdate != qsl ['date_sent'] :
+                    self.notice \
+                        ( "Dates do not match: %s in DB vs %s requested"
+                        % (qsl ['date_sent'], qslsdate)
+                        )
+                    q = self.au.get ('qsl/%s' % qsl ['id'])
+                    etag = q ['data']['@etag']
+                    if not self.args.dry_run :
+                        r = self.au.put \
+                            ( 'qsl/%s' % qsl ['id']
+                            , json = dict (date_sent = qslsdate)
+                            , etag = etag
+                            )
+    # end def do_check_adif
 
 # end class DB_Importer
 
 def main () :
     methods = [x [3:] for x in DB_Importer.__dict__ if x.startswith ('do_')]
+    qsl_types = ['LOTW', 'eQSL']
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( "command"
@@ -384,7 +483,7 @@ def main () :
     cmd.add_argument \
         ( "adiffile"
         , help    = "ADIF file to import"
-        #, nargs   = '?'
+        , nargs   = '?'
         )
     cmd.add_argument \
         ( "-a", "--antenna"
@@ -405,9 +504,31 @@ def main () :
                     " use last QSO date by default"
         )
     cmd.add_argument \
+        ( "-D", "--upload-date"
+        , help    = "Date when this list of QSLs was uploaded to LOTW"
+        )
+    cmd.add_argument \
         ( "-e", "--encoding"
         , help    = "Encoding of ADIF file, default=%(default)s"
         , default = 'utf-8'
+        )
+    cmd.add_argument \
+        ( "-E", "--eqsl-username"
+        , help    = "eQSL Username"
+        , default = 'oe3rsu'
+        )
+    cmd.add_argument \
+        ( "--eqsl-password"
+        , help    = "eQSL Password, better use .netrc"
+        )
+    cmd.add_argument \
+        ( "-L", "--lotw-username"
+        , help    = "LOTW Username"
+        , default = 'oe3rsu'
+        )
+    cmd.add_argument \
+        ( "--lotw-password"
+        , help    = "LOTW Password, better use .netrc"
         )
     cmd.add_argument \
         ( "-n", "--dry-run"
@@ -417,6 +538,11 @@ def main () :
     cmd.add_argument \
         ( "-p", "--password"
         , help    = "Password, better use .netrc"
+        )
+    cmd.add_argument \
+        ( "-q", "--qsl-type"
+        , help    = 'QSL type for some actions, allowed: '
+                    '%s' % ', '.join (qsl_types)
         )
     cmd.add_argument \
         ( "-U", "--url"
@@ -434,8 +560,14 @@ def main () :
         , action  = 'store_true'
         )
     args   = cmd.parse_args ()
+    if args.qsl_type and args.qsl_type not in qsl_types :
+        print ("Invalid qsl-type: %s" % args.qsl_type, file = sys.stderr)
+        sys.exit (1)
     db = DB_Importer (args)
-    db.execute ()
+    try :
+        db.execute ()
+    except ValueError as e :
+        print ("Error:", e)
 # end def main
 
 if __name__ == '__main__' :
