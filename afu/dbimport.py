@@ -15,6 +15,24 @@ except ImportError:
     from urlparse import urlparse
     from urllib   import quote as quote_plus
 
+def parse_cutoff (cutoff) :
+    fmts = \
+        ("%Y-%m-%d.%H:%M:%S", "%Y-%m-%dT%H:%M:%S"
+        , "%Y-%m-%d.%H:%M",   "%Y-%m-%dT%H:%M"
+        , "%Y-%m-%d"
+        )
+    for fmt in fmts :
+        try :
+            dt = datetime.strptime (cutoff, fmt)
+            break
+        except ValueError :
+            pass
+    else :
+        raise ValueError \
+            ("Unrecognized date format for %s" % cutoff)
+    return dt
+#end parse_cutoff
+
 class ADIF_Uploader (requester.Requester) :
 
     date_format = '%Y-%m-%d.%H:%M:%S'
@@ -292,21 +310,7 @@ class ADIF_Uploader (requester.Requester) :
 
     def set_cutoff_date (self, cutoff_date = None) :
         if cutoff_date :
-            fmts = \
-                ("%Y-%m-%d.%H:%M:%S", "%Y-%m-%dT%H:%M:%S"
-                , "%Y-%m-%d.%H:%M",   "%Y-%m-%dT%H:%M"
-                , "%Y-%m-%d"
-                )
-            for fmt in fmts :
-                try :
-                    dt = datetime.strptime (cutoff_date, fmt)
-                    break
-                except ValueError :
-                    pass
-            else :
-                raise ValueError \
-                    ("Unrecognized date format for %s" % cutoff_date)
-            self.cutoff = dt.strftime (self.date_format)
+            self.cutoff = parse_cutoff (cutoff_date).strftime (self.date_format)
         else :
             # Get QSO with latest start date unfortunately we have to
             # retrieve *all* qsos and sort ourselves.

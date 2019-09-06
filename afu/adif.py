@@ -68,10 +68,10 @@ class ADIF_Parse (autosuper) :
     # end def get_header
 
     def get_mode (self) :
-	if 'app_lotw_mode' in self :
-	    mode = self.app_lotw_mode
-	else :
-	    mode = self.mode
+        if 'app_lotw_mode' in self :
+            mode = self.app_lotw_mode
+        else :
+            mode = self.mode
         return mode
     # end def get_mode
 

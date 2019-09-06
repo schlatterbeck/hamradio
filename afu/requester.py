@@ -15,7 +15,7 @@ class Requester (autosuper) :
     def __init__ (self, url, username, password = None) :
         self.session  = requests.session ()
         self.url      = url
-        self.user     = username
+        self.username = username
         self.password = password
         self.headers  = {}
         self._pw      = None
@@ -53,7 +53,7 @@ class Requester (autosuper) :
             a = n.authenticators (t.netloc)
         if a :
             un, d, pw = a
-            if un != self.user :
+            if un != self.username :
                 raise ValueError ("Netrc username doesn't match")
             self._pw = pw
             return pw
@@ -90,7 +90,7 @@ class Requester (autosuper) :
 
     def set_basic_auth (self) :
         # Basic Auth: user, password
-        self.session.auth = (self.user, self.get_pw ())
+        self.session.auth = (self.username, self.get_pw ())
     # end def set_basic_auth
 
 # end class Requester

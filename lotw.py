@@ -3,19 +3,14 @@ from __future__ import print_function
 
 import io
 import sys
-import requests
 from argparse        import ArgumentParser
-from datetime        import datetime
-from netrc           import netrc
-from getpass         import getpass
 from rsclib.pycompat import text_type
 from afu             import requester
 from afu.adif        import ADIF
 from afu.dbimport    import ADIF_Uploader
 try :
-    from urllib.parse import urlparse, urlencode
+    from urllib.parse import urlencode
 except ImportError:
-    from urlparse import urlparse
     from urllib   import quote as urlencode
 
 class LOTW_Query (requester.Requester) :
@@ -41,7 +36,7 @@ class LOTW_Query (requester.Requester) :
         d = {}
         for a in args :
             d ['qso_' + a] = args [a]
-        d ['login']          = self.user
+        d ['login']          = self.username
         d ['password']       = self.get_pw ()
         d ['qso_qsl']        = 'no'
         d ['qso_query']      = 1
@@ -67,7 +62,7 @@ class LOTW_Query (requester.Requester) :
         d = {}
         for a in args :
             d ['qso_' + a] = args [a]
-        d ['login']          = self.user
+        d ['login']          = self.username
         d ['password']       = self.get_pw ()
         d ['qso_qsl']        = 'yes'
         d ['qso_query']      = 1
