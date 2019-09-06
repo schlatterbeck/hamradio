@@ -12,14 +12,14 @@ from rsclib.autosuper import autosuper
 
 class Requester (autosuper) :
 
-    def __init__ (self, url, username, password = None) :
+    def __init__ (self, url, username, password = None, **kw) :
         self.session  = requests.session ()
         self.url      = url
         self.username = username
         self.password = password
         self.headers  = {}
         self._pw      = None
-        self.__super.__init__ ()
+        self.__super.__init__ (**kw)
     # end def __init__
 
     def get (self, s, as_text=False) :

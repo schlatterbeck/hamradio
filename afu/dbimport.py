@@ -10,10 +10,12 @@ from getpass  import getpass
 from afu      import requester
 from afu.adif import ADIF, Native_ADIF_Record
 try :
-    from urllib.parse import urlparse, quote_plus
+    from urllib.parse import urlparse, quote_plus, urlencode
 except ImportError:
     from urlparse import urlparse
     from urllib   import quote as quote_plus
+    from urllib   import urlencode
+from rsclib.autosuper import autosuper
 
 def parse_cutoff (cutoff) :
     fmts = \
@@ -33,7 +35,30 @@ def parse_cutoff (cutoff) :
     return dt
 #end parse_cutoff
 
-class ADIF_Uploader (requester.Requester) :
+class Log_Mixin (autosuper) :
+
+    def __init__ (self, dry_run = False, verbose = False, **kw) :
+        self.verbose = verbose
+        self.dryrun = ''
+        if dry_run :
+            self.dryrun = '[dry run] '
+        self.__super.__init__ (**kw)
+    # end def __init__
+
+    def info (self, *args) :
+        if self.verbose :
+            print (self.dryrun, end = '')
+            print (*args)
+    # end def info
+
+    def notice (self, *args) :
+        print (self.dryrun, end = '')
+        print (*args)
+    # end def notice
+
+# end class Log_Mixin
+
+class ADIF_Uploader (requester.Requester, Log_Mixin) :
 
     date_format = '%Y-%m-%d.%H:%M:%S'
 
@@ -46,9 +71,9 @@ class ADIF_Uploader (requester.Requester) :
         , verbose  = False
         , antenna  = []
         ) :
-        self.__super.__init__ (url, username, password)
+        self.__super.__init__ \
+            (url, username, password, dry_run = dry_run, verbose = verbose)
         self.dry_run = dry_run
-        self.verbose = verbose
         self.set_basic_auth ()
         if self.url.endswith ('/') :
             orig = self.url.rstrip ('/')
@@ -61,9 +86,6 @@ class ADIF_Uploader (requester.Requester) :
             )
         self.headers ['X-Requested-With'] = 'requests library'
         self.url += 'rest/data/'
-        self.dryrun = ''
-        if dry_run :
-            self.dryrun = '[dry run] '
         self.antenna = {}
         for a in antenna :
             k, v = a.split (':', 1)
@@ -153,9 +175,7 @@ class ADIF_Uploader (requester.Requester) :
         return quote_plus (';').join ((date1, date2))
     # end def format_date
 
-    def import_adif (self, adif, encoding) :
-        f = io.open (adif, 'r', encoding = encoding)
-        adif  = ADIF (f)
+    def import_adif (self, adif) :
         count = 0
         for record in adif.records :
             aprops = set (('qso_date', 'time_on', 'time_off'))
@@ -282,54 +302,89 @@ class ADIF_Uploader (requester.Requester) :
         self.notice ("Inserted %d records" % count)
     # end def import_adif
 
-    def info (self, *args) :
-        if self.verbose :
-            print (self.dryrun, end = '')
-            print (*args)
-    # end def info
-
-    def notice (self, *args) :
-        print (self.dryrun, end = '')
-        print (*args)
-    # end def notice
-
     def set_call (self, call) :
         call = self.get \
-            ('ham_call?name=%s&@fields=name,call,gridsquare' % call)
+            ('ham_call?name:=%s&@fields=name,call,gridsquare' % call)
         collection = call ['data']['collection']
         if len (collection) == 0 :
             raise ValueError ('Invalid call: %s' % call)
-        if len (collection) > 1 :
-            raise ValueError \
-                ( 'Too many calls matched for %s:\n%s'
-                % ( call, '\n'.join (x ['name'] for x in collection))
-                )
+        assert len (collection) == 1
         self.call    = collection [0]
         self.id_call = self.call ['id']
     # end def set_call
 
     def set_cutoff_date (self, cutoff_date = None) :
+        """ cutoff_date is a datetime instance
+        """
         if cutoff_date :
-            self.cutoff = parse_cutoff (cutoff_date).strftime (self.date_format)
+            self.cutoff = cutoff_date.strftime (self.date_format)
         else :
-            # Get QSO with latest start date unfortunately we have to
-            # retrieve *all* qsos and sort ourselves.
-            # Should be fixed once we can.
-            qso = self.get ('qso?@fields=qso_start')
-            d = ''
-            for q in qso ['data']['collection'] :
-                if q ['qso_start'] > d :
-                    d = q ['qso_start']
+            # Get QSO with latest start date
+            d = { 'owner'      : self.id_call
+                , '@fields'    : 'qso_start'
+                , '@sort'      : '-qso_start'
+                , '@page_size' : 1
+                }
+            qso = self.get ('qso?' + urlencode (d))
+            qso = qso ['data']['collection']
+            if len (qso) == 0 :
+                raise ValueError ("No QSO found to determine cutoff")
+            assert len (qso) == 1
+            d = qso [0]['qso_start']
             self.cutoff = d
     # end def set_cutoff_date
 
 # end class ADIF_Uploader
 
+class DB_Importer (object) :
+
+    def __init__ (self, args) :
+        self.args = args
+        self.au = ADIF_Uploader \
+            ( args.url
+            , args.username
+            , args.password
+            , args.dry_run
+            , args.verbose
+            , args.antenna
+            )
+        self.au.set_call        (args.call)
+        cutoff = None
+	if args.cutoff_date :
+            cutoff = parse_cutoff (args.cutoff_date)
+        self.cutoff = cutoff
+        if args.adiffile :
+            with io.open (args.adiffile, 'r', encoding = args.encoding) as f :
+                adiffile = ADIF (f)
+                adiffile.set_date_format (self.au.date_format)
+                self.adiffile = adiffile
+    # end def __init__
+
+    def execute (self) :
+        method = getattr (self, 'do_' + self.args.command)
+        method ()
+    # end def execute
+
+    # Command methods start with 'do'
+
+    def do_import (self) :
+        self.au.set_cutoff_date (self.cutoff)
+        self.au.import_adif (self.adiffile)
+    # end def do_import
+
+# end class DB_Importer
+
 def main () :
+    methods = [x [3:] for x in DB_Importer.__dict__ if x.startswith ('do_')]
     cmd = ArgumentParser ()
     cmd.add_argument \
-        ( "adif"
+        ( "command"
+        , help    = "Command to execute, allowed: %s" % ', '.join (methods)
+        )
+    cmd.add_argument \
+        ( "adiffile"
         , help    = "ADIF file to import"
+        #, nargs   = '?'
         )
     cmd.add_argument \
         ( "-a", "--antenna"
@@ -379,18 +434,8 @@ def main () :
         , action  = 'store_true'
         )
     args   = cmd.parse_args ()
-    au     = ADIF_Uploader \
-        ( args.url
-        , args.username
-        , args.password
-        , args.dry_run
-        , args.verbose
-        , args.antenna
-        )
-    au.set_call        (args.call)
-    au.set_cutoff_date (args.cutoff_date)
-    au.import_adif (args.adif, args.encoding)
-
+    db = DB_Importer (args)
+    db.execute ()
 # end def main
 
 if __name__ == '__main__' :
