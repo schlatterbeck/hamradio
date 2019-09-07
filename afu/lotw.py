@@ -119,38 +119,6 @@ class LOTW_Downloader (object) :
             self.dryrun = '[dry run] '
     # end def __init__
 
-    def check_db_qsl_against_lotw (self) :
-        """ Get all DB records since the db cutoff (qsl-sent-date).
-            Retrieve all QSOs from LOTW since that cutoff date (the
-            lotw_cutoff is ignored) and check if all local QSLs exist as
-            QSO in LOTW.
-        """
-        # look it up in DB
-        d = { 'date_sent' : self.uploader.format_date (self.cutoff)
-            , 'qsl_type'  : 'LOTW'
-            , '@fields'   : 'qso'
-            }
-        qsl = self.uploader.get ('qsl?' + urlencode (d))
-        qsl = qsl ['data']['collection']
-        adif = self.lotwq.get_qso (since = self.cutoff, mydetail = 'yes')
-        adif.set_date_format (self.uploader.date_format)
-        for n, q in enumerate (qsl) :
-            qso = self.uploader.get ('qso/%s' % q ['qso']['id'])
-            q ['QSO'] = qso ['data']['attributes']
-            # Look it up by call in lotw
-            call = q ['QSO']['call']
-            date = q ['QSO']['qso_start']
-            for a in adif.by_call.get (call, []) :
-                assert a.call == call
-                if a.get_date () == date :
-                    if self.verbose :
-                        print ("%s: found: %s         " % (n, call), end = '\r')
-                        sys.stdout.flush ()
-                    break
-            else :
-                print ("Call: %s %s not in lotw" % (date, call))
-    # end def check_db_qsl_against_lotw
-
     def check_lotw_qso_against_qsl (self) :
         """ Loop over all LOTW QSOs sind lotw_cuttoff date and check
             they exist as SQL records (type LOTW) in local DB.

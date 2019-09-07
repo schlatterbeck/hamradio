@@ -534,6 +534,41 @@ class DB_Importer (Log_Mixin) :
                             )
     # end def do_check_adif
 
+    def do_check_db_qsl_against_log_app (self) :
+        """ Get all DB records since the db cutoff (qsl-sent-date).
+            Retrieve all QSOs from logbook app since that cutoff date
+            and check if all local QSLs exist as QSO in logbook.
+            FIXME: At some point we want to export this as ADIF.
+        """
+        qtype = self.args.qsl_type
+        # look it up in DB
+        d = { 'date_sent' : self.au.format_date (self.cutoff)
+            , 'qso.owner' : self.au.id_call
+            , 'qsl_type'  : qtype
+            , '@fields'   : 'qso'
+            }
+        qsl = self.au.get ('qsl?' + urlencode (d))['data']['collection']
+        adif = self.logbook.get_qso (since = self.cutoff, mydetail = 'yes')
+        adif.set_date_format (self.au.date_format)
+        for n, q in enumerate (qsl) :
+            qso = self.au.get ('qso/%s' % q ['qso']['id'])
+            q ['QSO'] = qso ['data']['attributes']
+            # Look it up by call in logbook
+            call = q ['QSO']['call']
+            date = q ['QSO']['qso_start']
+            for a in adif.by_call.get (call, []) :
+                assert a.call == call
+                if a.get_date ()[:16] == date [:16] :
+                    if self.verbose :
+                        self.animate_info ("%s: found: %s   " % (n, call))
+                    break
+            else :
+                if q ['QSO']['swl'] :
+                    self.notice ("%s: %s: SWL       " % (n, call))
+                else :
+                    self.notice ("Call: %s %s not in %s" % (date, call, qtype))
+    # end def do_check_db_qsl_against_log_app
+
     def do_export_adif_from_list (self) :
         """ Needs listfile option, this contains a listing that is
             output by the find_qso_without_qsl check of the form
@@ -560,7 +595,7 @@ class DB_Importer (Log_Mixin) :
             print (adif)
     # end def do_export_adif_from_list
 
-    def do_find_qso_without_qsl (self) :
+    def do_find_qso_without_qsl_in_db (self) :
         """ Loop over all QSOs and find those that do not have a
             corresponding logbook-app QSL. Use the cutoff date for
             selecting the qso_start.
@@ -597,7 +632,7 @@ class DB_Importer (Log_Mixin) :
             fn = self.args.export_adif
             with io.open (fn, 'w', encoding = self.args.encoding) as f :
                 f.write (text_type (adif))
-    # end def do_find_qso_without_qsl
+    # end def do_find_qso_without_qsl_in_db
 
 # end class DB_Importer
 
