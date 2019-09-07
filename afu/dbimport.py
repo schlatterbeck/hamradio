@@ -19,6 +19,7 @@ except ImportError:
     from urllib   import quote as quote_plus
     from urllib   import urlencode
 from rsclib.autosuper import autosuper
+from rsclib.pycompat  import text_type
 
 def parse_cutoff (cutoff) :
     fmts = \
@@ -56,8 +57,8 @@ class Log_Mixin (autosuper) :
 
     def animate_info (self, *args) :
         if self.verbose :
-	    print (*args, end = '\r')
-	    sys.stdout.flush ()
+            print (*args, end = '\r')
+            sys.stdout.flush ()
     # end def animate_info
 
     def notice (self, *args) :
@@ -125,10 +126,16 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
         end   = datetime.strptime (qso ['qso_end'], self.date_format)
         owner = self.get ('ham_call/%s' % qso ['owner']['id'])
         owner = owner ['data']['attributes']
+        # Get mode with name, adif_mode, adif_submode
+        mode  = self.get \
+            ( 'ham_mode/%s?@fields=name,adif_mode,adif_submode'
+            % qso ['mode']['id']
+            )
+        mode = mode ['data']['attributes']
 
-        rec   = Native_ADIF_Record \
+        d = dict \
             ( call             = qso ['call']
-            , mode             = qso ['mode']['name']
+            , mode             = mode ['adif_mode']
             , qso_date         = start.strftime ('%Y%m%d')
             , time_on          = start.strftime ('%H%M%S')
             , qso_date_off     = end.strftime ('%Y%m%d')
@@ -138,25 +145,52 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             , rst_rcvd         = qso ['rst_rcvd']
             , band             = qso ['band']['name']
             , freq             = qso ['freq']
-            , station_callsign = owner['call']
-            , my_gridsquare    = owner['gridsquare']
+            , station_callsign = owner ['call']
+            , my_gridsquare    = owner ['gridsquare']
             , tx_pwr           = qso ['tx_pwr']
             )
+        if mode ['adif_submode'] :
+            d ['submode'] = mode ['adif_submode']
+        if owner ['eqsl_nickname'] :
+            d ['app_eqsl_qth_nickname'] = owner ['eqsl_nickname']
+        rec = Native_ADIF_Record (**d)
         return rec
     # end def qso_as_adif
 
-    def find_qsl (self, call, qsodate, type = None, mode = None) :
-        d = self.mangle_date (qsodate)
-        s = 'qsl?@fields=date_sent,date_recv,qso&qso.call:=%s&qso.qso_start=%s'
-        s = s % (call, d)
+    def _mangle_mode (self, mode, submode) :
+        """ Backwards compatibility for old ADIF files that contain
+            something that is now a submode in the mode field and have
+            an empty submode.
+        """
+        if not submode :
+            if mode.startswith ('PSK') and len (mode) != 3 :
+                return 'PSK', mode
+            if mode.startswith ('QPSK') :
+                if len (mode) == 4 :
+                    return 'PSK', ''
+                return 'PSK', mode
+            if mode.startswith ('MFSK') and len (mode) != 4 :
+                return 'MFSK', mode
+            return mode, submode
+        return mode, submode
+    # end def _mangle_mode
+
+    def find_qsl (self, call, qsodate, type=None, mode=None, submode=None) :
+        """ Find a QSL via parameters, these typically come from and
+            ADIF file and follow ADIF conventions.
+        """
+        d = { '@fields'       : 'date_sent,date_recv,qso'
+            , 'qso.call:'     : call
+            , 'qso.qso_start' : self.mangle_date (qsodate)
+            }
+        mode, submode = self._mangle_mode (mode, submode)
         if type :
-            s += '&qsl_type=%s' % type
+            d ['qsl_type'] = type
         if mode :
-            # Search for both, PSKxxx and QPSKxxx
-            if mode.startswith ('PSK') :
-                mode = mode + ',Q%s' % mode
-            s += '&qso.mode=%s' % mode
-        r = self.get (s) ['data']['collection']
+            d ['qso.mode.adif_mode'] = mode
+        if mode :
+            d ['qso.mode.adif_submode'] = submode
+        r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
         if type and mode :
             assert len (r) <= 1
             if len (r) == 1 :
@@ -166,10 +200,11 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
     # end def find_qsl
 
     def find_qso (self, call, qsodate) :
-        d = self.mangle_date (qsodate)
-        s = 'qso?@fields=call&call:=%s&qso_start=%s'
-        s = s % (call, d)
-        r = self.get (s) ['data']['collection']
+        d = { '@fields'   : 'call'
+            , 'call:'     : call
+            , 'qso_start' : self.mangle_date (qsodate)
+            }
+        r = self.get ('qso?' + urlencode (d)) ['data']['collection']
         assert len (r) <= 1
         if len (r) == 1 :
             return r [0]
@@ -377,7 +412,7 @@ class DB_Importer (Log_Mixin) :
             )
         self.au.set_call (args.call)
         cutoff = None
-	if args.cutoff_date :
+        if args.cutoff_date :
             cutoff = parse_cutoff (args.cutoff_date)
         self.cutoff = cutoff
         self.adif = None
@@ -444,7 +479,12 @@ class DB_Importer (Log_Mixin) :
             self.info ("Found %s in %s" % (r.call, qtype))
             # look it up in DB
             qsl = self.au.find_qsl \
-                (r.call, r.get_date (), type = qtype, mode = r.get_mode ())
+                ( r.call
+                , r.get_date ()
+                , type = qtype
+                , mode = r.get_mode ()
+                , submode = r.dict.get ('submode', '')
+                )
             if not qsl :
                 self.info ("Call: %s not found in DB" % r.call)
                 # Search QSO
@@ -498,7 +538,12 @@ class DB_Importer (Log_Mixin) :
                 date, call = line.split () [:2]
                 qso = self.au.find_qso (call, date)
                 adif.append (self.au.qso_as_adif (qso ['id']))
-        print (adif)
+        if self.args.export_adif :
+            fn = self.args.export_adif
+            with io.open (fn, 'w', encoding = self.args.encoding) as f :
+                f.write (text_type (adif))
+        else :
+            print (adif)
     # end def do_export_adif_from_list
 
     def do_find_qso_without_qsl (self) :
@@ -514,6 +559,9 @@ class DB_Importer (Log_Mixin) :
             d ['qso_start'] = self.cutoff.strftime (self.au.date_format)
         qso = self.au.get ('qso?' + urlencode (d))
         qso = qso ['data']['collection']
+        if self.args.export_adif :
+            adif = ADIF ()
+            adif.header = 'ADIF export RSC-QSO'
         for n, q in enumerate (qso) :
             call = q ['call']
             qsl = self.au.get ('qsl?qso=%s&qsl_type=%s' % (q ['id'], qtype))
@@ -527,8 +575,14 @@ class DB_Importer (Log_Mixin) :
                         ( "Call: %s %s has no %s qsl"
                         % (q ['qso_start'], call, qtype)
                         )
-	    else :
-		self.animate_info ("%s: found: %s         " % (n, call))
+                    if self.args.export_adif :
+                        adif.append (self.au.qso_as_adif (q ['id']))
+            else :
+                self.animate_info ("%s: found: %s         " % (n, call))
+        if self.args.export_adif :
+            fn = self.args.export_adif
+            with io.open (fn, 'w', encoding = self.args.encoding) as f :
+                f.write (text_type (adif))
     # end def do_find_qso_without_qsl
 
 # end class DB_Importer
@@ -581,6 +635,11 @@ def main () :
     cmd.add_argument \
         ( "--eqsl-password"
         , help    = "eQSL Password, better use .netrc"
+        )
+    cmd.add_argument \
+        ( "--export-adif"
+        , help    = "Export ADIF to the given file, usable for comands "
+                    "export_adif_from_list, find_qso_without_qsl"
         )
     cmd.add_argument \
         ( "--listfile"
