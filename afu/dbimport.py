@@ -593,6 +593,25 @@ class DB_Importer (Log_Mixin) :
                 self.animate_info ("%s: found: %s         " % (n, a.call))
     # end def do_check_log_app_against_qsl
 
+    def do_check_log_app_dupes (self) :
+        qtype = self.args.qsl_type
+        adif = self.logbook.get_qso (since = self.cutoff, mydetail = 'yes')
+        adif.set_date_format (self.au.date_format)
+        for k, key in enumerate (adif.by_call) :
+            calls = adif.by_call [key]
+            if len (calls) == 1 :
+                c = calls [0]
+		self.animate_info ("%s: no dupe: %s       " % (k, c.call))
+                continue
+            for n, c1 in enumerate (calls) :
+                for c2 in calls [n+1:] :
+                    assert c1.call == c2.call
+                    if c1.get_date () == c2.get_date () :
+                        self.notice ("Duplicate %s record:" % qtype)
+                        self.notice ("First:\n",  c1)
+                        self.notice ("Second:\n", c2)
+    # end def do_check_log_app_dupes
+
     def do_export_adif_from_list (self) :
         """ Needs listfile option, this contains a listing that is
             output by the find_qso_without_qsl check of the form

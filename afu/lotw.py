@@ -119,26 +119,6 @@ class LOTW_Downloader (object) :
             self.dryrun = '[dry run] '
     # end def __init__
 
-    def check_lotw_dupes (self) :
-        adif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
-        adif.set_date_format (self.uploader.date_format)
-        for k, key in enumerate (adif.by_call) :
-            calls = adif.by_call [key]
-            if len (calls) == 1 :
-                c = calls [0]
-                if self.verbose :
-                    print ("%s: no dupe: %s       " % (k, c.call), end = '\r')
-                    sys.stdout.flush ()
-                continue
-            for n, c1 in enumerate (calls) :
-                for c2 in calls [n+1:] :
-                    assert c1.call == c2.call
-                    if c1.get_date () == c2.get_date () :
-                        print ("Duplicate LOTW record:")
-                        print ("First:\n",  c1)
-                        print ("Second:\n", c2)
-    # end def check_lotw_dupes
-
     def check_qsl (self) :
         """ Get all QSL from LOTW with given lotw_cutoff date.
             Check them all against DB:
