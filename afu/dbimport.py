@@ -559,8 +559,7 @@ class DB_Importer (Log_Mixin) :
             for a in adif.by_call.get (call, []) :
                 assert a.call == call
                 if a.get_date ()[:16] == date [:16] :
-                    if self.verbose :
-                        self.animate_info ("%s: found: %s   " % (n, call))
+                    self.animate_info ("%s: found: %s   " % (n, call))
                     break
             else :
                 if q ['QSO']['swl'] :
@@ -568,6 +567,31 @@ class DB_Importer (Log_Mixin) :
                 else :
                     self.notice ("Call: %s %s not in %s" % (date, call, qtype))
     # end def do_check_db_qsl_against_log_app
+
+    def do_check_log_app_against_qsl (self) :
+        """ Loop over all logbook app QSOs since cutoff date and check
+            they exist as SQL records (correct qsl type) in local DB.
+        """
+        qtype = self.args.qsl_type
+        adif = self.logbook.get_qso (since = self.cutoff, mydetail = 'yes')
+        adif.set_date_format (self.au.date_format)
+        for n, a in enumerate (adif) :
+            submode = a.dict.get ('submode', None)
+            qsl = self.au.find_qsl \
+                ( a.call
+                , a.get_date () [:16]
+                , type    = qtype
+                , mode    = a.get_mode ()
+                , submode = submode
+                )
+            if not qsl :
+                self.notice \
+		    ( "Call: %s %s: no %s QSL found in DB"
+                    % (a.call, a.get_date (), qtype)
+                    )
+            else :
+                self.animate_info ("%s: found: %s         " % (n, a.call))
+    # end def do_check_log_app_against_qsl
 
     def do_export_adif_from_list (self) :
         """ Needs listfile option, this contains a listing that is

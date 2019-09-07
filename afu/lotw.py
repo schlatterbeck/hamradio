@@ -119,23 +119,6 @@ class LOTW_Downloader (object) :
             self.dryrun = '[dry run] '
     # end def __init__
 
-    def check_lotw_qso_against_qsl (self) :
-        """ Loop over all LOTW QSOs sind lotw_cuttoff date and check
-            they exist as SQL records (type LOTW) in local DB.
-        """
-        adif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
-        adif.set_date_format (self.uploader.date_format)
-        for n, a in enumerate (adif) :
-            qsl = self.uploader.find_qsl \
-                (a.call, a.get_date (), type = 'LOTW', mode = a.get_mode ())
-            if not qsl :
-                print ("Call: %s: no LOTW QSL found in DB" % a.call)
-                print (a)
-            if self.verbose :
-                print ("%s: found: %s         " % (n, a.call), end = '\r')
-                sys.stdout.flush ()
-    # end def check_lotw_qso_against_qsl
-
     def check_lotw_dupes (self) :
         adif = self.lotwq.get_qso (since = self.lotw_cutoff, mydetail = 'yes')
         adif.set_date_format (self.uploader.date_format)
