@@ -300,7 +300,8 @@ class ADIF_Record (ADIF_Parse) :
         r = []
         for k in sorted (self.dict) :
             v = self [k]
-            r.append ('<%s:%d>%s' % (k, len (v), v))
+            if v is not None :
+                r.append ('<%s:%d>%s' % (k, len (v), v))
         r.append ('<eor>')
         return '\n'.join (r)
     # end def __str__
