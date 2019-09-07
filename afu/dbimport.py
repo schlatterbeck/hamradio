@@ -187,8 +187,8 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
         if type :
             d ['qsl_type'] = type
         if mode :
-            d ['qso.mode.adif_mode'] = mode
-        if mode :
+            d ['qso.mode.adif_mode']    = mode
+        if submode :
             d ['qso.mode.adif_submode'] = submode
         r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
         if type and mode :
@@ -199,11 +199,16 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             return r
     # end def find_qsl
 
-    def find_qso (self, call, qsodate) :
+    def find_qso (self, call, qsodate, mode=None, submode=None) :
         d = { '@fields'   : 'call'
             , 'call:'     : call
             , 'qso_start' : self.mangle_date (qsodate)
             }
+        mode, submode = self._mangle_mode (mode, submode)
+        if mode :
+            d ['mode.adif_mode']    = mode
+        if submode :
+            d ['mode.adif_submode'] = submode
         r = self.get ('qso?' + urlencode (d)) ['data']['collection']
         assert len (r) <= 1
         if len (r) == 1 :
@@ -227,7 +232,7 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             date2 = ''
         if not date1 :
             date1 = ''
-        return quote_plus (';').join ((date1, date2))
+        return ';'.join ((date1, date2))
     # end def format_date
 
     def import_adif (self, adif) :
@@ -259,7 +264,10 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
                     de = ds
             assert (de >= ds)
             pp = self.format_date (de, de)
-            dr = self.get ('qso?qso_end=%s&owner=%s' % (pp, self.id_call))
+            d = { 'qso_end' : pp
+                , 'owner'   : self.id_call
+                }
+            dr = self.get ('qso?' + urlencode (d))
             if dr ['data']['collection'] :
                 dupe = False
                 for d in dr ['data']['collection'] :
@@ -478,17 +486,23 @@ class DB_Importer (Log_Mixin) :
                 continue
             self.info ("Found %s in %s" % (r.call, qtype))
             # look it up in DB
+            submode = r.dict.get ('submode', None)
             qsl = self.au.find_qsl \
                 ( r.call
                 , r.get_date ()
-                , type = qtype
-                , mode = r.get_mode ()
-                , submode = r.dict.get ('submode', '')
+                , type    = qtype
+                , mode    = r.get_mode ()
+                , submode = submode
                 )
             if not qsl :
                 self.info ("Call: %s not found in DB" % r.call)
                 # Search QSO
-                qso = self.au.find_qso (r.call, r.get_date ())
+                qso = self.au.find_qso \
+                    ( r.call
+                    , r.get_date ()
+                    , mode    = r.get_mode ()
+                    , submode = submode
+                    )
                 if not qso :
                     self.notice ("Call: %s QSO not found in DB!!!!!" % r.call)
                     continue

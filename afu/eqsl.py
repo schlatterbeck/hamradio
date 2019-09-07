@@ -116,8 +116,8 @@ class EQSL_Query (requester.Requester) :
 
 def main () :
     e = EQSL_Query (sys.argv [1], sys.argv [2])
-    print (e.last_upload ())
-    print (e.get_qso ())
+    print (e.last_upload ().strftime ('%Y-%m-%d.%H:%M:%S'))
+    #print (e.get_qso ())
 
 if __name__ == '__main__' :
     main ()

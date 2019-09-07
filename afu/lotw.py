@@ -126,9 +126,11 @@ class LOTW_Downloader (object) :
             QSO in LOTW.
         """
         # look it up in DB
-        cut = self.uploader.format_date (self.cutoff)
-        qsl = self.uploader.get \
-            ('qsl?date_sent=%s&qsl_type=LOTW&@fields=qso' % cut)
+        d = { 'date_sent' : self.uploader.format_date (self.cutoff)
+            , 'qsl_type'  : 'LOTW'
+            , '@fields'   : 'qso'
+            }
+        qsl = self.uploader.get ('qsl?' + urlencode (d))
         qsl = qsl ['data']['collection']
         adif = self.lotwq.get_qso (since = self.cutoff, mydetail = 'yes')
         adif.set_date_format (self.uploader.date_format)
