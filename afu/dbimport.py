@@ -5,7 +5,7 @@ import io
 import sys
 import requests
 from argparse import ArgumentParser
-from datetime import datetime
+from datetime import datetime, timedelta
 from netrc    import netrc
 from getpass  import getpass
 from afu      import requester
@@ -175,13 +175,24 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
         return mode, submode
     # end def _mangle_mode
 
-    def find_qsl (self, call, qsodate, type=None, mode=None, submode=None) :
+    def find_qsl \
+        ( self, call, qsodate
+        , type    = None
+        , mode    = None
+        , submode = None
+        , fuzzy   = False
+        ) :
         """ Find a QSL via parameters, these typically come from and
             ADIF file and follow ADIF conventions.
+            The fuzzy match is mainly used for eQSL: This doesn't return
+            the exact start time of *my* QSO but seems to return the
+            start the of the peer which usually differs. In case fuzzy
+            was requested we relax matching of the start time to
+            +/- 5 Minutes.
         """
         d = { '@fields'       : 'date_sent,date_recv,qso'
             , 'qso.call:'     : call
-            , 'qso.qso_start' : self.mangle_date (qsodate)
+            , 'qso.qso_start' : self.mangle_date (qsodate, fuzzy)
             }
         mode, submode = self._mangle_mode (mode, submode)
         if type :
@@ -192,7 +203,11 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             d ['qso.mode.adif_submode'] = submode
         r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
         if type and mode :
-            assert len (r) <= 1
+            if len (r) > 1 :
+                raise ValueError \
+                    ( "Duplicate QSL: %s %s Mode: %s/%s"
+                    % (call, qsodate, mode, submode or '')
+                    )
             if len (r) == 1 :
                 return r [0]
         else :
@@ -215,15 +230,31 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             return r [0]
     # end def find_qso
 
-    def mangle_date (self, date) :
+    def mangle_date (self, date, fuzzy = False) :
         """ Compute a date range.
             Typically dates should include the second. But if the date
             string is shorter and includes no seconds, we add seconds
             for the end-date of the range (59 should be fine).
+            If fuzzy is True we match date +/- 5 Minutes.
+        >>> au = ADIF_Uploader ('http://example.com', '', dry_run = 1)
+        >>> au.mangle_date ('2019-09-02.18:57')
+        '2019-09-02.18:57;2019-09-02.18:57:59'
+        >>> au.mangle_date ('2019-09-02.18:57', fuzzy = True)
+        '2019-09-02.18:52:00;2019-09-02.19:02:00'
         """
-        if len (date) == 16 :
-            return self.format_date (date, date + ':59')
-        return self.format_date (date, date)
+        if fuzzy :
+            if len (date) == 16 :
+                date = date + ':00'
+            fmt = self.date_format
+            dt = datetime.strptime (date, fmt)
+            td = timedelta (minutes = 5)
+            d1 = dt - td
+            d2 = dt + td
+            return self.format_date (d1.strftime (fmt), d2.strftime (fmt))
+        else :
+            if len (date) == 16 :
+                return self.format_date (date, date + ':59')
+            return self.format_date (date, date)
     # end def mangle_date
 
     @staticmethod
@@ -611,6 +642,135 @@ class DB_Importer (Log_Mixin) :
                         self.notice ("First:\n",  c1)
                         self.notice ("Second:\n", c2)
     # end def do_check_log_app_dupes
+
+    def do_check_qsl (self) :
+        """ Get all QSL from log app with given cutoff date.
+            Check them all against DB:
+            Find QSL, check qsl received time against local DB
+            it's an error if QSL is not found (the qsl record should
+            have been created when submitted to the log app).
+        """
+        qtype = self.args.qsl_type
+        now   = datetime.now ().strftime (self.au.date_format)
+        dxcc = self.au.get ('dxcc_entity?@fields=code')
+        dxcc = dxcc ['data']['collection']
+        dxcc_by_id   = {}
+        dxcc_by_code = {}
+        for entry in dxcc :
+            dxcc_by_id   [entry ['id']]   = entry ['code']
+            dxcc_by_code [entry ['code']] = entry ['id']
+
+        adif = self.logbook.get_qsl (since = self.cutoff, mydetail = 'yes')
+        adif.set_date_format (self.au.date_format)
+        for a in adif :
+            # Do not try to match SWL, these are checked & entered by hand
+            if a.dict.get ('app_eqsl_swl') :
+                continue
+            date = a.get_date ()
+            submode = a.dict.get ('submode', None)
+            # eQSL returns the start time of the peer for QSLs
+            # So no exact match, we need to specify fuzzy.
+            qsl = self.au.find_qsl \
+                ( a.call
+                , date [:16]
+                , type    = qtype
+                , mode    = a.get_mode ()
+                , submode = submode
+                , fuzzy   = (qtype == 'eQSL')
+                )
+            if not qsl :
+                self.notice \
+                    ( 'Error: QSL not found: %s %s mode: %s/%s'
+                    % (date, a.call, a.get_mode (), submode or '')
+                    )
+                continue
+            cmpd  = True
+            rdate = a.get_qsl_rdate ()
+            if rdate is None :
+                rdate = now
+                cmpd  = False
+            set_recv_date = False
+            if not qsl ['date_recv'] :
+                set_recv_date = True
+                self.notice \
+                    ( "QSL received, updating: %s %s date: %s"
+                    % (date, a.call, rdate)
+                    )
+                q  = self.au.get ('qsl/%s' % qsl ['id'])
+                q  = q ['data']
+                if not self.args.dry_run :
+                    d = dict (date_recv = rdate)
+                    self.au.put \
+                        ('qsl/%s' % qsl ['id'], json = d, etag = q ['@etag'])
+            elif cmpd and qsl ['date_recv'][:10] != rdate [:10] :
+                # We only compare the date, not the time
+                # (time is always empty in LOTW)
+                self.notice \
+                    ( "QSL receive time not matching: %s %s %s vs %s"
+                    % (date, a.call, qsl ['date_sent'], a.get_qsl_rdate ())
+                    )
+            qso  = self.au.get ('qso/%s' % qsl ['qso']['id'])
+            qso  = qso ['data']
+            etag = qso ['@etag']
+            q_id = qso ['id']
+            qso  = qso ['attributes']
+
+            fields = dict \
+                ( iota = 'iota'
+                , cqz  = 'cq_zone'
+                , ituz = 'itu_zone'
+                , dxcc = 'dxcc_entity'
+                )
+            d = {}
+            for k in fields :
+                if k in a :
+                    f = qso [fields [k]]
+                    v = val = a [k]
+                    if isinstance (f, type ({})) :
+                        f = dxcc_by_id [f ['id']]
+                    if k == 'dxcc' :
+                        v = "%03d" % int (a [k])
+                        val = dxcc_by_code [v]
+                    if k == 'cqz' or k == 'ituz' :
+                        v = int (a [k], 10)
+                    if not f :
+                        d [fields [k]] = val
+                    elif text_type (f) != text_type (v) :
+                        if k == 'dxcc' :
+                            # Update dxcc in any case
+                            d [fields [k]] = val
+                        self.notice \
+                            ("QSO %s %s Field %s differs: %s vs %s"
+                            % (date, a.call, k, f, v)
+                            )
+            # Append QSL message if any only when qsl was first seen
+            # Ignore common auto message
+            com_msg = ('TNX For QSO TU 73!.', 'TNX For QSL TU 73!.')
+            if  ( set_recv_date
+                and a.dict.get ('qslmsg')
+                and a.qslmsg not in com_msg
+                ) :
+                    m  = 'QSL message:\n'
+                    md = dict \
+                        ( content = m + a.qslmsg
+                        , type    = 'text/plain'
+                        , author  = self.args.username
+                        , date    = rdate
+                        )
+                    if self.args.dry_run :
+                        id = '99999'
+                    else :
+                        r  = self.au.post ('msg', json = md)
+                        id = r ['data']['id']
+                    m  = list (x ['id'] for x in qso ['messages'])
+                    m.append (id)
+                    d ['messages'] = m
+            if d :
+                if not self.args.dry_run :
+                    self.au.put ('qso/%s' % q_id, json = d, etag = etag)
+                self.notice \
+                    ("QSO %s %s updated: %s" % (date, a.call, d))
+    # end def do_check_qsl
 
     def do_export_adif_from_list (self) :
         """ Needs listfile option, this contains a listing that is
