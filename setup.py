@@ -37,7 +37,7 @@ setup \
     , author_email     = "rsc@runtux.com"
     , packages         = ['afu']
     , platforms        = 'Any'
-    , scripts          = ['bin/dbimport', 'bin/callsign_lookup']
+    , scripts          = ['bin/qso-import', 'bin/callsign_lookup']
     , classifiers      = \
         [ 'Development Status :: 5 - Production/Stable'
         , 'License :: OSI Approved :: ' + license
