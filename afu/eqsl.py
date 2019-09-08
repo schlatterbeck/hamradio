@@ -67,7 +67,7 @@ class EQSL_Query (requester.Requester) :
         return self._get_adif (t)
     # end def get_qso
 
-    def get_qsl (self, since = '', **kw) :
+    def get_qsl (self, since = '', archived = None, **kw) :
         """ Get Inbox as ADIF
             'since' is a datetime instance
         """
@@ -80,6 +80,8 @@ class EQSL_Query (requester.Requester) :
         if since :
             since = since.strftime ('%Y%m%d%H%M')
             d ['RcvdSince'] = since
+        if archived is not None :
+            d ['Archive']   = int (bool (archived))
         t = self.get ('?' + urlencode (d), as_text = True)
         return self._get_adif (t, 'Inbox')
     # end def get_qsl

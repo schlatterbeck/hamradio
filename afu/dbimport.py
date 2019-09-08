@@ -659,8 +659,15 @@ class DB_Importer (Log_Mixin) :
         for entry in dxcc :
             dxcc_by_id   [entry ['id']]   = entry ['code']
             dxcc_by_code [entry ['code']] = entry ['id']
-
-        adif = self.logbook.get_qsl (since = self.cutoff, mydetail = 'yes')
+        archived = 0
+        # No error check if something wrong comes along stay at default
+        if self.args.archived != 'no' :
+            if self.args.archived == 'yes' :
+                archived = 1
+            elif self.args.archived == 'all' :
+                archived = None
+        adif = self.logbook.get_qsl \
+            (since = self.cutoff, mydetail = 'yes', archived = archived)
         adif.set_date_format (self.au.date_format)
         for a in adif :
             # Do not try to match SWL, these are checked & entered by hand
@@ -859,6 +866,13 @@ def main () :
                     "default=%(default)s"
         , action  = 'append'
         , default = ['20m:Magnetic Loop D=98cm', '40m:Magnetic Loop D=3.5m']
+        )
+    cmd.add_argument \
+        ( "--archived"
+        , help    = "Retrieve archived (value 'yes'), non-archived "
+                    "(value 'no') or all records (value 'all') for "
+                    "eQSL, default=%(default)s"
+        , default = "no"
         )
     cmd.add_argument \
         ( "-c", "--call"
