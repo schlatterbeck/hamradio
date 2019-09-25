@@ -487,7 +487,7 @@ class DB_Importer (Log_Mixin) :
         self.au.import_adif (self.adif)
     # end def do_import
 
-    def do_check_adif (self) :
+    def do_import_qsl (self) :
         """ Match QSOs and check that QSL exists for specified qsl_type
             Update date if it is given and does not match
             Create QSL if it doesn't exist, a date must be given
@@ -563,7 +563,7 @@ class DB_Importer (Log_Mixin) :
                             , json = dict (date_sent = qslsdate)
                             , etag = etag
                             )
-    # end def do_check_adif
+    # end def do_import_qsl
 
     def do_check_db_qsl_against_log_app (self) :
         """ Get all DB records since the db cutoff (qsl-sent-date).
