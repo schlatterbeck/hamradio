@@ -859,13 +859,18 @@ def main () :
         , help    = "ADIF file to import"
         , nargs   = '?'
         )
+    antenna_defaults = \
+        [ '20m:Magnetic Loop D=98cm'
+        , '40m:Magnetic Loop D=3.5m'
+        , '15m:Magnetic Loop D=0.5m'
+        ]
     cmd.add_argument \
         ( "-a", "--antenna"
         , help    = "Antenna to use for band, colon separated "
                     "band:antenna, later values override earlier values, "
                     "default=%(default)s"
         , action  = 'append'
-        , default = ['20m:Magnetic Loop D=98cm', '40m:Magnetic Loop D=3.5m']
+        , default = antenna_defaults
         )
     cmd.add_argument \
         ( "--archived"
