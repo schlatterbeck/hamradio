@@ -805,6 +805,24 @@ class DB_Importer (Log_Mixin) :
             print (adif)
     # end def do_export_adif_from_list
 
+    def do_export_adif_from_query (self) :
+        """ Needs adif-query option, this contains a query that used for
+            retrieving QSOs.
+        """
+        adif = ADIF ()
+        adif.header = 'ADIF export RSC-QSO'
+        q = self.au.get ('qso?' + self.args.adif_query)
+        q = q ['data']['collection']
+        for k in q :
+            adif.append (self.au.qso_as_adif (k ['id']))
+        if self.args.export_adif :
+            fn = self.args.export_adif
+            with io.open (fn, 'w', encoding = self.args.encoding) as f :
+                f.write (text_type (adif))
+        else :
+            print (adif)
+    # end def do_export_adif_from_query
+
     def do_find_qso_without_qsl_in_db (self) :
         """ Loop over all QSOs and find those that do not have a
             corresponding logbook-app QSL. Use the cutoff date for
@@ -878,6 +896,11 @@ def main () :
                     "(value 'no') or all records (value 'all') for "
                     "eQSL, default=%(default)s"
         , default = "no"
+        )
+    cmd.add_argument \
+        ( "-A", "--adif-query"
+        , help    = "Query to perform for ADIF export with "
+                    "export_adif_from_query command"
         )
     cmd.add_argument \
         ( "-c", "--call"
