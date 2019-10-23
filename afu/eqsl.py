@@ -39,7 +39,7 @@ class EQSL_Query (requester.Requester) :
         soup = BeautifulSoup (linkpage, 'html.parser')
         for a in soup.find_all ('a') :
             href = a.get ('href')
-            if not href.startswith ('downloaded') :
+            if 'downloaded' not in href :
                 continue
             if not href.endswith ('.adi') :
                 continue
