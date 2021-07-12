@@ -878,9 +878,10 @@ def main () :
         , nargs   = '?'
         )
     antenna_defaults = \
-        [ '20m:Magnetic Loop D=98cm'
+        [ '20m:Magnetic Loop D=88cm'
+        , '17m:Magnetic Loop D=88cm'
         , '40m:Magnetic Loop D=3.5m'
-        , '15m:Magnetic Loop D=0.5m'
+        , '15m:Magnetic Loop D=57cm'
         ]
     cmd.add_argument \
         ( "-a", "--antenna"
