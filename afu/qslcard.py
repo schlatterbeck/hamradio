@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from __future__ import print_function
 
+import re
 from argparse        import ArgumentParser
 from afu             import requester
 try :
@@ -9,6 +10,14 @@ except ImportError :
     from urllib import urlencode
 
 class QSL_Exporter (requester.Requester) :
+
+    replacements = dict \
+        (( ('<', '$<$')
+        ,  ('>', '$>$')
+        ,  (',', '{,}')
+        ))
+    rep = dict ((re.escape (k), v) for k, v in replacements.items ())
+    pattern = re.compile ('|'.join (rep.keys ()))
 
     def __init__ (self, args) :
         self.args = args
@@ -41,9 +50,16 @@ class QSL_Exporter (requester.Requester) :
             yield (k)
     # end def qsl_iter
 
-    def _arg (self, n) :
-        return '{' + '{%s}' * n + '}'
-    # end def _arg
+    def quoted (self, key) :
+        v = self.qsl [key]
+        if isinstance (v, int) :
+            v = str (v)
+        #return self.pattern.sub \
+        #    (lambda m: self.rep [re.escape (m.group (0))], v)
+        for k in self.replacements :
+            v = v.replace (k, self.replacements [k])
+        return v
+    # end def quoted
 
     def as_tex (self) :
         r = []
@@ -52,6 +68,7 @@ class QSL_Exporter (requester.Requester) :
         lastcall  = None
         lastowner = None
         for qsl in self.qsl_iter () :
+            self.qsl = qsl
             if qsl ['qso.swl'] :
                 qslfor = self.get ('qso/%s' % qsl ['qso.swl']['id'])
                 qslfor = qslfor ['data']['attributes']
@@ -60,42 +77,38 @@ class QSL_Exporter (requester.Requester) :
                 ) :
                 if lastcall :
                     r.append (r'\end{qslcard}')
-                is_swl = ''
-                if qsl ['qso.swl'] :
-                    is_swl = 'y'
-                r.append \
-                    ( ( r'\begin{qslcard}'
-                      + self._arg (3) # owner info
-                      + self._arg (2) # qth + grid
-                      + self._arg (3) # zones + iota
-                      + self._arg (3) # call, via, swl
-                      )
-                    % ( qsl ['qso.owner.call']
-                      , qsl ['qso.owner.owner.realname']
-                      , qsl ['qso.owner.cardname']
-                      , qsl ['qso.owner.qth']
-                      , qsl ['qso.owner.gridsquare']
-                      , qsl ['qso.owner.cq_zone']
-                      , qsl ['qso.owner.itu_zone']
-                      , qsl ['qso.owner.iota'] or ''
-                      , qsl ['qso.call']
-                      , qsl ['qso.qsl_via'] or ''
-                      , is_swl
+                s = ( (r'\begin{qslcard}{' + ','.join (['%s=%s'] * 8))
+                    % ( 'ocall',    self.quoted ('qso.owner.call')
+                      , 'oname',    self.quoted ('qso.owner.owner.realname')
+                      , 'cardname', self.quoted ('qso.owner.cardname')
+                      , 'qthname',  self.quoted ('qso.owner.qth')
+                      , 'grid',     self.quoted ('qso.owner.gridsquare')
+                      , 'cq',       self.quoted ('qso.owner.cq_zone')
+                      , 'itu',      self.quoted ('qso.owner.itu_zone')
+                      , 'call',     self.quoted ('qso.call')
                       )
                     )
+                if qsl ['qso.owner.iota'] :
+                    s += ',iota=%s' % self.quoted ('qso.owner.iota')
+                if qsl ['qso.qsl_via'] :
+                    s += ',via=%s' % self.quoted ('qso.qsl_via')
+                if qsl ['qso.swl'] :
+                    s += ',swl=y'
+                r.append (s + '}')
             dt, time = qsl ['qso.qso_start'].split ('.')
             time_end = qsl ['qso.qso_end'].split ('.')[-1]
-            rst_or_call = qsl ['qso.rst_sent']
             if qsl ['qso.swl'] :
                 rst_or_call = qslfor ['call']
+            else :
+                rst_or_call = self.quoted ('qso.rst_sent')
             r.append \
                 ( r'\qso' + ('{%s}' * 7)
                 % ( dt, time
-                  , qsl ['qso.band.name']
-                  , qsl ['qso.rst_sent']
-                  , qsl ['qso.mode.name']
-                  , qsl ['qso.tx_pwr']
-                  , qsl ['qso.antenna.name']
+                  , self.quoted ('qso.band.name')
+                  , rst_or_call
+                  , self.quoted ('qso.mode.name')
+                  , self.quoted ('qso.tx_pwr')
+                  , self.quoted ('qso.antenna.name')
                   )
                 )
             lastcall  = qsl ['qso.call']
