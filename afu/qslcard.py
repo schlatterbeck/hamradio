@@ -54,11 +54,11 @@ class QSL_Exporter (requester.Requester) :
         v = self.qsl [key]
         if isinstance (v, int) :
             v = str (v)
-        #return self.pattern.sub \
-        #    (lambda m: self.rep [re.escape (m.group (0))], v)
-        for k in self.replacements :
-            v = v.replace (k, self.replacements [k])
-        return v
+        return self.pattern.sub \
+            (lambda m: self.rep [re.escape (m.group (0))], v)
+        #for k in self.replacements :
+        #    v = v.replace (k, self.replacements [k])
+        #return v
     # end def quoted
 
     def as_tex (self) :
