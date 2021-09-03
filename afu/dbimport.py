@@ -617,7 +617,7 @@ class DB_Importer (Log_Mixin) :
                 )
             if not qsl :
                 self.notice \
-		    ( "Call: %s %s: no %s QSL found in DB"
+                    ( "Call: %s %s: no %s QSL found in DB"
                     % (a.call, a.get_date (), qtype)
                     )
             else :
@@ -632,7 +632,7 @@ class DB_Importer (Log_Mixin) :
             calls = adif.by_call [key]
             if len (calls) == 1 :
                 c = calls [0]
-		self.animate_info ("%s: no dupe: %s       " % (k, c.call))
+                self.animate_info ("%s: no dupe: %s       " % (k, c.call))
                 continue
             for n, c1 in enumerate (calls) :
                 for c2 in calls [n+1:] :
