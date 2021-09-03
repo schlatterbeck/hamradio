@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import re
+import sys
 from argparse        import ArgumentParser
 from afu             import requester
 try :
@@ -54,6 +55,9 @@ class QSL_Exporter (requester.Requester) :
         v = self.qsl [key]
         if isinstance (v, int) :
             v = str (v)
+        if isinstance (v, type (None)) :
+            print ("Warning: Got None object for key=%s" % key, file=sys.stderr)
+            return ''
         return self.pattern.sub \
             (lambda m: self.rep [re.escape (m.group (0))], v)
         #for k in self.replacements :
