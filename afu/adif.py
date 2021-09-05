@@ -124,7 +124,7 @@ class ADIF_Parse (autosuper) :
                         value = []
                         state = 'start'
                         if stop :
-                            raise StopIteration ()
+                            return
                 else :
                     tag.append (c)
             elif state == 'length' :
@@ -162,7 +162,7 @@ class ADIF_Parse (autosuper) :
                     state = 'skip'
                     if stop :
                         state = 'start'
-                        raise StopIteration ()
+                        return
             else :
                 assert (0)
             c = self.fd.read (1)
