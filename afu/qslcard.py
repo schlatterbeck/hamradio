@@ -36,14 +36,16 @@ class QSL_Exporter (requester.Requester) :
         assert len (bureau) == 1
         bureau = bureau ['data']['collection'][0]['id']
         d = dict (date_sent = '-', qsl_type = bureau)
-        fields = ['qso.call', 'qso.owner.cq_zone', 'qso.owner.itu_zone']
-        fields.extend (['qso.owner.iota', 'qso.owner.owner.realname'])
-        fields.extend (['qso.owner.call', 'qso.owner.qth', 'qso.qso_start'])
-        fields.extend (['qso.owner.gridsquare', 'qso.qso_end'])
-        fields.extend (['qso.band.name', 'qso.owner.cardname'])
-        fields.extend (['qso.rst_sent', 'qso.mode.name', 'qso.tx_pwr'])
-        fields.extend (['qso.antenna.name', 'qso.owner.name'])
-        fields.extend (['qso.qsl_via', 'qso.swl'])
+        fields = \
+            [ 'qso.call', 'qso.owner.cq_zone', 'qso.owner.itu_zone'
+            , 'qso.owner.iota', 'qso.owner.owner.realname'
+            , 'qso.owner.call', 'qso.owner.qth', 'qso.qso_start'
+            , 'qso.owner.gridsquare', 'qso.qso_end', 'qso.band.name'
+            , 'qso.owner.cardname', 'qso.rst_sent', 'qso.mode.name'
+            , 'qso.tx_pwr', 'qso.antenna.name', 'qso.owner.name'
+            , 'qso.qsl_via', 'qso.swl', 'qso.remarks'
+            , 'qso.owner.dxcc_entity.name', 'qso.owner.dxcc_entity.shortname'
+            ]
         d ['@fields'] = ','.join (fields)
         d ['@sort'] = 'qso.owner.name,qso.call,qso.qso_start'
         r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
@@ -60,9 +62,6 @@ class QSL_Exporter (requester.Requester) :
             return ''
         return self.pattern.sub \
             (lambda m: self.rep [re.escape (m.group (0))], v)
-        #for k in self.replacements :
-        #    v = v.replace (k, self.replacements [k])
-        #return v
     # end def quoted
 
     def as_tex (self) :
@@ -81,7 +80,11 @@ class QSL_Exporter (requester.Requester) :
                 ) :
                 if lastcall :
                     r.append (r'\end{qslcard}')
-                s = ( (r'\begin{qslcard}{' + ','.join (['%s=%s'] * 8))
+                if qsl ['qso.owner.dxcc_entity.shortname'] :
+                    country = self.quoted ('qso.owner.dxcc_entity.shortname')
+                else :
+                    country = self.quoted ('qso.owner.dxcc_entity.name')
+                s = ( (r'\begin{qslcard}{' + ','.join (['%s=%s'] * 9))
                     % ( 'ocall',    self.quoted ('qso.owner.call')
                       , 'oname',    self.quoted ('qso.owner.owner.realname')
                       , 'cardname', self.quoted ('qso.owner.cardname')
@@ -90,24 +93,29 @@ class QSL_Exporter (requester.Requester) :
                       , 'cq',       self.quoted ('qso.owner.cq_zone')
                       , 'itu',      self.quoted ('qso.owner.itu_zone')
                       , 'call',     self.quoted ('qso.call')
+                      , 'country',  country
                       )
                     )
                 if qsl ['qso.owner.iota'] :
                     s += ',iota=%s' % self.quoted ('qso.owner.iota')
                 if qsl ['qso.qsl_via'] :
                     s += ',via=%s' % self.quoted ('qso.qsl_via')
+                if qsl ['qso.remarks'] :
+                    s += ',remarks=%s' % self.quoted ('qso.remarks')
                 if qsl ['qso.swl'] :
                     s += ',swl=y'
                 r.append (s + '}')
-            dt, time = qsl ['qso.qso_start'].split ('.')
-            time_end = qsl ['qso.qso_end'].split ('.')[-1]
+            dt, tend   = qsl ['qso.qso_end'].split ('.')
+            time_start = qsl ['qso.qso_start'].split ('.')[-1]
+            # Limit to Minutes
+            tend       = ':'.join (tend.split (':')[:2])
             if qsl ['qso.swl'] :
                 rst_or_call = qslfor ['call']
             else :
                 rst_or_call = self.quoted ('qso.rst_sent')
             r.append \
                 ( r'\qso' + ('{%s}' * 7)
-                % ( dt, time
+                % ( dt, tend
                   , self.quoted ('qso.band.name')
                   , rst_or_call
                   , self.quoted ('qso.mode.name')
