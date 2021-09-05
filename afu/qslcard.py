@@ -43,7 +43,7 @@ class QSL_Exporter (requester.Requester) :
             , 'qso.owner.gridsquare', 'qso.qso_end', 'qso.band.name'
             , 'qso.owner.cardname', 'qso.rst_sent', 'qso.mode.name'
             , 'qso.tx_pwr', 'qso.antenna.name', 'qso.owner.name'
-            , 'qso.qsl_via', 'qso.swl', 'qso.remarks'
+            , 'qso.qsl_via', 'qso.swl', 'qso.remarks', 'date_recv'
             , 'qso.owner.dxcc_entity.name', 'qso.owner.dxcc_entity.shortname'
             ]
         d ['@fields'] = ','.join (fields)
@@ -104,6 +104,8 @@ class QSL_Exporter (requester.Requester) :
                     s += ',remarks=%s' % self.quoted ('qso.remarks')
                 if qsl ['qso.swl'] :
                     s += ',swl=y'
+                if not qsl ['date_recv'] :
+                    s += ',wantqsl=y'
                 r.append (s + '}')
             dt, tend   = qsl ['qso.qso_end'].split ('.')
             time_start = qsl ['qso.qso_start'].split ('.')[-1]
