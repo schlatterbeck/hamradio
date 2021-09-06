@@ -107,17 +107,17 @@ class QSL_Exporter (requester.Requester) :
                 if not qsl ['date_recv'] :
                     s += ',wantqsl=y'
                 r.append (s + '}')
-            dt, tend   = qsl ['qso.qso_end'].split ('.')
-            time_start = qsl ['qso.qso_start'].split ('.')[-1]
+            dt, tstart = qsl ['qso.qso_start'].split ('.')
+            tend       = qsl ['qso.qso_end'].split ('.')[-1]
             # Limit to Minutes
-            tend       = ':'.join (tend.split (':')[:2])
+            tstart     = ':'.join (tstart.split (':')[:2])
             if qsl ['qso.swl'] :
                 rst_or_call = qslfor ['call']
             else :
                 rst_or_call = self.quoted ('qso.rst_sent')
             r.append \
                 ( r'\qso' + ('{%s}' * 7)
-                % ( dt, tend
+                % ( dt, tstart
                   , self.quoted ('qso.band.name')
                   , rst_or_call
                   , self.quoted ('qso.mode.name')
