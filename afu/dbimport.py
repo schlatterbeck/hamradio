@@ -385,7 +385,7 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
                         create_dict [p] = record [ap]
                     else :
                         assert ap not in ('call', 'mode')
-            missing_fields = set (record.dict.iterkeys ()) - aprops
+            missing_fields = set (record.dict.keys ()) - aprops
             if missing_fields :
                 raise RuntimeError ("Missing fields: %s" % str (missing_fields))
             self.info ("Create QSO: %s" % create_dict)
