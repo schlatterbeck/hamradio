@@ -143,6 +143,8 @@ class DXCC_Parser (Parser) :
         self.head_text = []
         self.crossref  = {}
         self.entries   = []
+        self.by_name   = {}
+        self.by_code   = {}
         self.prefix    = {}
         self.notes     = {}
         self.lastnote  = None
@@ -207,6 +209,8 @@ class DXCC_Parser (Parser) :
         p = newp
         e.prefixes = p
         self.entries.append (e)
+        self.by_name [e.name] = e
+        self.by_code [e.code] = e
         for prf in e.prefixes :
             if prf not in self.prefix :
                 self.prefix [prf] = []
