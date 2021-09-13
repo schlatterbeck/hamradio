@@ -3,6 +3,7 @@
 import io
 import sys
 import os
+from afu.dxcc import DXCC_File
 
 # Sources
 # Big CTY list:
@@ -180,8 +181,35 @@ class CTY :
 
 # end class CTY
 
+class CTY_DXCC :
+    """ Matching of dxcc entities via CTY
+        Note that since CTY contains more calls we need a mapping.
+        Also the names in CTY are not the same as in DXCC.
+    """
+
+    def __init__ (self) :
+        dxcc = DXCC_File ()
+        dxcc.parse ()
+        self.dxcc = dxcc.by_type ['CURRENT']
+        self.cty  = CTY (CTY.data)
+    # end def __init__
+
+    def callsign_lookup (self, call) :
+        """ Look up a DXCC entity of a callsign via CTY
+            For compatibility with the DXCC lookup which can contain
+            multiple matches we return a (one-element) list.
+        """
+        name = self.cty.callsign_lookup (call)
+        if name is None :
+            return []
+        name = darc_waedc_dxcc.get (name, name)
+        name = cty_to_dxcc.get     (name, name)
+        return [self.dxcc.by_name [name]]
+    # end def dxcc_lookup
+
+# end class CTY_DXCC
+
 if __name__ == '__main__' :
-    from afu.dxcc import DXCC_File
     dxcc = DXCC_File ()
     dxcc.parse ()
     dxcc = dxcc.by_type ['CURRENT']
