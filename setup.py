@@ -35,12 +35,14 @@ setup \
     , author           = "Ralf Schlatterbeck"
     , author_email     = "rsc@runtux.com"
     , packages         = ['afu']
+    , package_data     = dict
+        (afu = ['data/*.txt', 'data/*.dat', 'data/*.html'])
     , platforms        = 'Any'
     , scripts          = [ 'bin/qso-import'
                          , 'bin/callsign_lookup'
                          , 'bin/qsl-export'
                          ]
-    , classifiers      = \
+    , classifiers      =
         [ 'Development Status :: 5 - Production/Stable'
         , 'License :: OSI Approved :: ' + license
         , 'Operating System :: OS Independent'

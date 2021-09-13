@@ -28,6 +28,7 @@
 # ****************************************************************************
 
 import io
+import os
 import requests
 from re                 import compile as rc
 from argparse           import ArgumentParser
@@ -285,25 +286,32 @@ class DXCC_Parser (Parser) :
 # end class DXCC_Parser
 
 class DXCC_File (autosuper) :
-    url = 'http://www.arrl.org/files/file/DXCC/2019_Current_Deleted(3).txt'
+    base = '2019_Current_Deleted(3).txt'
+    url  = 'http://www.arrl.org/files/file/DXCC/' + base
+    file = os.path.join (os.path.dirname (__file__), 'data', base)
 
-    def __init__ (self, url = None) :
-        if url is not None :
-            self.url = url
-        self.session = requests.session ()
+    def __init__ (self, url = None, file = file) :
+        self.url       = url
+        self.file      = file
         self.dxcc_list = []
         self.by_type   = {}
+        if self.url is not None :
+            self.session = requests.session ()
     # end def __init__
 
     def parse (self) :
         h = 'ARRL DXCC LIST'
-        r = self.session.get (self.url)
-        if not (200 <= r.status_code <= 299) :
-            raise RuntimeError \
-                ( 'Invalid get result: %s: %s\n    %s'
-                % (r.status_code, r.reason, r.text)
-                )
-        t = r.text
+        if self.url is not None :
+            r = self.session.get (self.url)
+            if not (200 <= r.status_code <= 299) :
+                raise RuntimeError \
+                    ( 'Invalid get result: %s: %s\n    %s'
+                    % (r.status_code, r.reason, r.text)
+                    )
+            t = r.text
+        else :
+            with io.open (self.file, 'r') as f :
+                t = f.read ()
         t = t.split (h)
         assert len (t) > 1
         self.dxcc_list = []
@@ -330,12 +338,17 @@ def main () :
         , nargs   = '*'
         )
     cmd.add_argument \
+        ( "-f", "--file"
+        , help    = "File of DXCC List, default=%(default)s"
+        , default = DXCC_File.file
+        )
+    cmd.add_argument \
         ( "-u", "--url"
         , help    = "URL of DXCC List, default=%(default)s"
-        , default = DXCC_File.url
+        , default = None
         )
     args = cmd.parse_args ()
-    df   = DXCC_File (url = args.url)
+    df   = DXCC_File (url = args.url, file = file)
     df.parse ()
     #for l in df.dxcc_list :
     #    #print l.entity_type
