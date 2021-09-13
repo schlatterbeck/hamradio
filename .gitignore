@@ -16,3 +16,6 @@ dist
 .#*
 .*.swp
 .DS_store
+*.log
+*.adi
+*.adif
