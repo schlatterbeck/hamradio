@@ -149,6 +149,7 @@ class CTY :
                 else :
                     # Docs say 'should' contain comma at the end on continuation
                     if line.endswith (';') :
+                        line = line.rstrip (';')
                         end = True
                     line = line.rstrip (',')
                     pfxs = line.split (',')
@@ -173,6 +174,8 @@ class CTY :
     # end def __init__
 
     def callsign_lookup (self, callsign) :
+        if callsign in self.exact_callsign :
+            return self.exact_callsign [callsign]
         for n in reversed (range (self.prf_max)) :
             pfx = callsign [:n+1]
             if pfx in self.prefix :
