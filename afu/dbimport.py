@@ -232,11 +232,6 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             d ['qso.mode.adif_submode'] = submode
         r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
         if type and mode :
-            if len (r) > 1 :
-                raise ValueError \
-                    ( "Duplicate QSL: %s %s Mode: %s/%s"
-                    % (call, qsodate, mode, submode or '')
-                    )
             if len (r) == 1 :
                 return r [0]
             # retry with qsl.qso_time instead of qso.qso_start
