@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright (C) 2019 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-21 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -142,7 +142,8 @@ class EQSL_Query (requester.Requester) :
             content = self.get (img.get ('src'), as_result = True).content
             return content
         else :
-            print ("Error: No image for %s" % rec.call)
+            print ("Error: No image for %s:" % rec.call)
+            print (t)
     # end def get_qslcard
 
     def get_qslcard_deprecated (self, rec, own_call) :

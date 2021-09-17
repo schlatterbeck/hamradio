@@ -818,6 +818,8 @@ class DB_Importer (Log_Mixin) :
                     cn = dict (content = content)
                     r  = self.au.post ('file', data = df, files = cn)
                     qsl_dict ['files'] = [r ['data']['id']]
+                else :
+                    self.notice ("QSL %s %s has no QSL card" % (date, a.call))
             if qsl_dict :
                 qsid = qsl ['id']
                 # Retrieve qsl and get etag
