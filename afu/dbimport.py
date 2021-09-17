@@ -214,8 +214,8 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             ADIF file and follow ADIF conventions.
             The fuzzy match is mainly used for eQSL: This doesn't return
             the exact start time of *my* QSO but seems to return the
-            start the of the peer which usually differs. In case fuzzy
-            was requested we relax matching of the start time to
+            start of the peer which usually differs. In case fuzzy was
+            requested we relax matching of the start time to
             +/- 5 Minutes.
         """
         fields = ['date_sent', 'date_recv', 'qso', 'files', 'qso_time']
@@ -232,6 +232,21 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             d ['qso.mode.adif_submode'] = submode
         r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
         if type and mode :
+            if len (r) > 1 :
+                raise ValueError \
+                    ( "Duplicate QSL: %s %s Mode: %s/%s"
+                    % (call, qsodate, mode, submode or '')
+                    )
+            if len (r) == 1 :
+                return r [0]
+            # retry with qsl.qso_time instead of qso.qso_start
+            # if the fuzzy match didn't return anything (fuzzy means
+            # we're using eQSL). So if we already manually inserted the
+            # eQSL start time it will match.
+            if fuzzy :
+                del d ['qso.qso_start']
+                d ['qso_time'] = self.mangle_date (qsodate, False)
+                r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
             if len (r) > 1 :
                 raise ValueError \
                     ( "Duplicate QSL: %s %s Mode: %s/%s"
