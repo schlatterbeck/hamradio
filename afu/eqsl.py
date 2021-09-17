@@ -137,9 +137,12 @@ class EQSL_Query (requester.Requester) :
         t = self.get ('GeteQSL.cfm?' + urlencode (d), as_text = True)
         soup = BeautifulSoup (t, 'html.parser')
         self.url = self.site.rstrip ('/')
-        for img in soup.find_all ('img') :
+        img = soup.find ('img')
+        if img :
             content = self.get (img.get ('src'), as_result = True).content
             return content
+        else :
+            print ("Error: No image for %s" % rec.call)
     # end def get_qslcard
 
     def get_qslcard_deprecated (self, rec, own_call) :

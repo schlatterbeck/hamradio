@@ -813,10 +813,11 @@ class DB_Importer (Log_Mixin) :
             # Add QSL Card from eQSL
             if getattr (self.logbook, 'get_qslcard', 0) and not qsl ['files'] :
                 content = self.logbook.get_qslcard (a, self.args.eqsl_username)
-                df = dict (type = 'image/png', name = 'qsl')
-                cn = dict (content = content)
-                r  = self.au.post ('file', data = df, files = cn)
-                qsl_dict ['files'] = [r ['data']['id']]
+                if content :
+                    df = dict (type = 'image/png', name = 'qsl')
+                    cn = dict (content = content)
+                    r  = self.au.post ('file', data = df, files = cn)
+                    qsl_dict ['files'] = [r ['data']['id']]
             if qsl_dict :
                 qsid = qsl ['id']
                 # Retrieve qsl and get etag
