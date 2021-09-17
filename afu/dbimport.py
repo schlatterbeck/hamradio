@@ -699,9 +699,6 @@ class DB_Importer (Log_Mixin) :
             (since = self.cutoff, mydetail = 'yes', archived = archived)
         adif.set_date_format (self.au.date_format)
         for a in adif :
-            # Do not try to match SWL, these are checked & entered by hand
-            if a.dict.get ('app_eqsl_swl') :
-                continue
             date = a.get_date ()
             submode = a.dict.get ('submode', None)
             # eQSL returns the start time of the peer for QSLs
