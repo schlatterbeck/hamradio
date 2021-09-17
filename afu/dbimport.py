@@ -218,7 +218,8 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             was requested we relax matching of the start time to
             +/- 5 Minutes.
         """
-        d = { '@fields'       : 'date_sent,date_recv,qso'
+        fields = ['date_sent', 'date_recv', 'qso', 'files', 'qso_time']
+        d = { '@fields'       : ','.join (fields)
             , 'qso.call:'     : call
             , 'qso.qso_start' : self.mangle_date (qsodate, fuzzy)
             }
@@ -778,7 +779,7 @@ class DB_Importer (Log_Mixin) :
                             ("QSO %s %s Field %s differs: %s vs %s"
                             % (date, a.call, k, f, v)
                             )
-            # Append QSL message if any only when qsl was first seen
+            # Append QSL message if any, only when qsl was first seen
             # Ignore common auto message
             com_msg = ('TNX For QSO TU 73!.', 'TNX For QSL TU 73!.')
             if  ( set_recv_date
@@ -805,6 +806,26 @@ class DB_Importer (Log_Mixin) :
                     self.au.put ('qso/%s' % q_id, json = d, etag = etag)
                 self.notice \
                     ("QSO %s %s updated: %s" % (date, a.call, d))
+            qsl_dict = {}
+            # Add QSL QSO-Date (peer date) if available
+            if a.dict.get ('time_on') and not qsl ['qso_time'] :
+                qsl_dict ['qso_time'] = a.get_date ()
+            # Add QSL Card from eQSL
+            if getattr (self.logbook, 'get_qslcard', 0) and not qsl ['files'] :
+                content = self.logbook.get_qslcard (a, self.args.eqsl_username)
+                df = dict (type = 'image/png', name = 'qsl')
+                cn = dict (content = content)
+                r  = self.au.post ('file', data = df, files = cn)
+                qsl_dict ['files'] = [r ['data']['id']]
+            if qsl_dict :
+                qsid = qsl ['id']
+                # Retrieve qsl and get etag
+                r    = self.au.get ('qsl/%s' % qsid)
+                etag = r ['data']['@etag']
+                if not self.args.dry_run :
+                    self.au.put ('qsl/%s' % qsid, json = qsl_dict, etag = etag)
+                self.notice \
+                    ("QSL %s %s updated: %s" % (date, a.call, qsl_dict))
     # end def do_check_qsl
 
     def do_export_adif_from_list (self) :

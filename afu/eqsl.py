@@ -33,6 +33,7 @@ import io
 import sys
 import requests
 from locale          import setlocale, LC_TIME
+from time            import sleep
 from datetime        import datetime
 from argparse        import ArgumentParser
 from afu             import requester
@@ -47,11 +48,14 @@ except ImportError:
 
 class EQSL_Query (requester.Requester) :
 
-    base_url        = 'https://www.eqsl.cc/qslcard/'
+    site            = 'https://www.eqsl.cc/'
+    base_url        = site + 'qslcard/'
     import_url      = base_url + 'ImportADIF.cfm'
     out_url         = base_url + 'DownloadADIF.cfm'
     in_url          = base_url + 'DownloadInBox.cfm'
     last_upload_url = base_url + 'DisplayLastUploadDate.cfm'
+    picture_url     = site + 'QSLCard/DisplayeQSL.cfm'
+    login_url       = site + 'QSLCard/'
 
     date_format = '%Y-%m-%d.%H:%M:%S'
 
@@ -114,6 +118,58 @@ class EQSL_Query (requester.Requester) :
         return self._get_adif (t, 'Inbox')
     # end def get_qsl
 
+    def get_qslcard (self, rec, own_call) :
+        self.url = self.base_url
+        d = dict \
+            ( Username     = self.username
+            , Password     = self.get_pw ()
+            , CallsignFrom = rec.call
+            , QSOYear      = rec.qso_date [:4]
+            , QSOMonth     = rec.qso_date [4:6]
+            , QSODay       = rec.qso_date [6:8]
+            , QSOHour      = rec.time_on [:2]
+            , QSOMinute    = rec.time_on [2:4]
+            , QSOBand      = rec.band
+            , QSOMode      = rec.mode
+            )
+        # eQSL asks to limit GeteQSL.cfm to 6/Minute
+        sleep (10)
+        t = self.get ('GeteQSL.cfm?' + urlencode (d), as_text = True)
+        soup = BeautifulSoup (t, 'html.parser')
+        self.url = self.site.rstrip ('/')
+        for img in soup.find_all ('img') :
+            content = self.get (img.get ('src'), as_result = True).content
+            return content
+    # end def get_qslcard
+
+    def get_qslcard_deprecated (self, rec, own_call) :
+        """ Get QSL card for a single ADIF record
+            This currently seems to retrieve the background image and
+            the QSL confirmation but not the text of the callsign, name
+            etc.
+            So this would need more work, but get_qslcard is the correct
+            way to go.
+        """
+        if not self.cookies :
+            self.login ()
+        date = rec.qso_date
+        date = '-'.join ((date [:4], date [4:6], date [6:8]))
+        time = ':'.join ((rec.time_on [:2], rec.time_on [2:4]))
+        d = dict \
+            ( Callsign        = rec.call
+            , VisitorCallsign = own_call
+            , QSODate         = ' '.join ((date, time))
+            , Band            = rec.band
+            )
+        self.url = self.picture_url
+        t = self.get ('?' + urlencode (d), as_text = True)
+        soup = BeautifulSoup (t, 'html.parser')
+        self.url = self.site.rstrip ('/')
+        for img in soup.find_all ('img') :
+            content = self.get (img.get ('src'), as_result = True).content
+            return content
+    # end def get_qslcard_deprecated
+
     def last_upload (self) :
         self.url = self.last_upload_url
         d = {}
@@ -141,6 +197,22 @@ class EQSL_Query (requester.Requester) :
         setlocale (LC_TIME, oldloc)
         return dt
     # end def last_upload
+
+    def login (self) :
+        self.url = self.login_url
+        # Build the real login request
+        d = dict (Callsign = self.username, EnteredPassword = self.get_pw ())
+        r = self.post ('LoginFinish.cfm', data = d, as_result = True)
+        # Get the cookie test
+        self.cookies = r.cookies
+        sleep (1)
+        r = self.get \
+            ( 'CookieTest.cfm?sw=1024&sh=768'
+            , as_result = True
+            , cookies   = r.cookies
+            )
+        self.cookies.update (r.cookies)
+    # end def login
 
 # end class EQSL_Query
 

@@ -48,18 +48,21 @@ class Requester (autosuper) :
         self.headers     = {}
         self._pw         = None
         self.relax_check = False
+        self.cookies     = None
         if kw.get ('relax_username_check', False) :
             self.relax_check = True
         self.__super.__init__ (**kw)
     # end def __init__
 
-    def get (self, s, as_text=False) :
-        r = self.session.get (self.url + s, headers = self.headers)
+    def get (self, s, as_text=False, as_result = False, **kw) :
+        r = self.session.get (self.url + s, headers = self.headers, **kw)
         if not (200 <= r.status_code <= 299) :
             raise RuntimeError \
                 ( 'Invalid get result: %s: %s\n    %s'
                 % (r.status_code, r.reason, r.text)
                 )
+        if as_result :
+            return r
         if as_text :
             return r.text
         return r.json ()
@@ -93,8 +96,17 @@ class Requester (autosuper) :
         return pw
     # end def get_pw
 
-    def post_or_put (self, method, s, data = None, json = None, etag = None) :
+    def post_or_put \
+        ( self, method, s
+        , data      = None
+        , json      = None
+        , etag      = None
+        , as_text   = False
+        , as_result = False
+        , **kw
+        ) :
         d = {}
+        d.update (kw)
         if data :
             d ['data'] = data
         if json :
@@ -108,15 +120,19 @@ class Requester (autosuper) :
                 ( 'Invalid put/post result: %s: %s\n    %s'
                 % (r.status_code, r.reason, r.text)
                 )
+        if as_result :
+            return r
+        if as_text :
+            return r.text
         return r.json ()
     # end def post_or_put
 
-    def post (self, s, data = None, json = None, etag = None) :
-        return self.post_or_put (self.session.post, s, data, json, etag)
+    def post (self, s, **kw) :
+        return self.post_or_put (self.session.post, s, ** kw)
     # end def post
 
-    def put (self, s, data = None, json = None, etag = None) :
-        return self.post_or_put (self.session.put, s, data, json, etag)
+    def put (self, s, **kw) :
+        return self.post_or_put (self.session.put, s, ** kw)
     # end def put
 
     def set_basic_auth (self) :
