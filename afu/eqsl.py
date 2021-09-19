@@ -142,8 +142,14 @@ class EQSL_Query (requester.Requester) :
             content = self.get (img.get ('src'), as_result = True).content
             return content
         else :
-            print ("Error: No image for %s:" % rec.call)
-            print (t)
+            if 'ERROR' in t :
+                for line in t.split ('\n') :
+                    line = line.strip ()
+                    if line.startswith ('ERROR') :
+                        print (line)
+                        break
+            else :
+                print (t)
     # end def get_qslcard
 
     def get_qslcard_deprecated (self, rec, own_call) :
