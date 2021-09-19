@@ -160,10 +160,43 @@ class QSL_Exporter (requester.Requester) :
         return '\n'.join (r)
     # end def as_tex
 
+    def set_sent_date (self) :
+        for qsl in self.qsl_iter () :
+            # Get the qsl again to get etag
+            q = self.get ('qsl/%s' % qsl ['id'])
+            etag = q ['data']['@etag']
+            d = dict (date_sent = self.args.sent_date)
+            if not self.args.dry_run :
+                self.put ('qsl/%s' % qsl ['id'], json = d, etag = etag)
+            if self.args.verbose :
+                dry = ''
+                if self.args.dry_run :
+                    dry = ' (dry run)'
+                print ('Set %s%s' % (d, dry), file = sys.stderr)
+    # end def set_sent_date
+
 # end class QSL_Exporter
 
 def main () :
     cmd  = ArgumentParser ()
+    cmd.add_argument \
+        ( "-d", "--sent-date", "--send-date"
+        , help    = "Set the sending-date of the QSL-Card"
+        )
+    cmd.add_argument \
+        ( "-n", "--dry-run"
+        , help    = "Dry run, do nothing"
+        , action  = 'store_true'
+        )
+    cmd.add_argument \
+        ( "-p", "--password"
+        , help    = "Password, better use .netrc"
+        )
+    cmd.add_argument \
+        ( "-q", "--qsl-type"
+        , help    = "QSL type, default=%(default)s"
+        , default = 'Bureau'
+        )
     cmd.add_argument \
         ( "-U", "--url"
         , help    = "URL of tracker (without rest path) default: %(default)s"
@@ -175,17 +208,15 @@ def main () :
         , default = 'ralf'
         )
     cmd.add_argument \
-        ( "-p", "--password"
-        , help    = "Password, better use .netrc"
-        )
-    cmd.add_argument \
-        ( "-q", "--qsl-type"
-        , help    = "QSL type, default=%(default)s"
-        , default = 'Bureau'
+        ( "-v", "--verbose"
+        , help    = "Set verbose reporting (only when setting)"
+        , action  = 'store_true'
         )
     args = cmd.parse_args ()
     e    = QSL_Exporter (args)
     print (e.as_tex ())
+    if args.sent_date :
+        e.set_sent_date ()
 
 if __name__ == '__main__' :
     main ()
