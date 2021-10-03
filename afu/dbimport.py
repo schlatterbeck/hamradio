@@ -218,7 +218,10 @@ class ADIF_Uploader (requester.Requester, Log_Mixin) :
             requested we relax matching of the start time to
             +/- 5 Minutes.
         """
-        fields = ['date_sent', 'date_recv', 'qso', 'files', 'qso_time']
+        fields = \
+            [ 'date_sent', 'date_recv', 'qso'
+            , 'files', 'qso_time', 'gridsquare', 'rst_rcvd'
+            ]
         d = { '@fields'       : ','.join (fields)
             , 'qso.call:'     : call
             , 'qso.qso_start' : self.mangle_date (qsodate, fuzzy)
@@ -817,6 +820,9 @@ class DB_Importer (Log_Mixin) :
             # Add QSL QSO-Date (peer date) if available
             if a.dict.get ('time_on') and not qsl ['qso_time'] :
                 qsl_dict ['qso_time'] = a.get_date ()
+            # Add grid if available
+            if a.dict.get ('gridsquare') and not qsl ['gridsquare'] :
+                qsl_dict ['gridsquare'] = a.gridsquare
             # Add QSL Card from eQSL
             if getattr (self.logbook, 'get_qslcard', 0) and not qsl ['files'] :
                 content = self.logbook.get_qslcard (a, self.args.eqsl_username)
