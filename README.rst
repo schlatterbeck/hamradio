@@ -8,6 +8,9 @@ AFU: Ham-Radio scripts
 Trivia: The name comes from the German word "Amateurfunk" = Hamradio
 abbreviated AFU for this package.
 
+Note that the binaries currently installed with the package work only in
+conjunction with my logging database based on Roundup_.
+
 The software in the modules of this python package centers around
 handling of QSO logging data, retrieval of electronic QSLs from various
 electronic QSL services (currently Logbook of the World LOTW_ and eQSL_)
