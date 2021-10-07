@@ -44,7 +44,7 @@ setup \
                          , 'bin/callsign_lookup'
                          , 'bin/qsl-export'
                          ]
-    , url              = 'https://github.com/schlatterbeck/afu'
+    , url              = 'https://github.com/schlatterbeck/hamradio'
     , classifiers      =
         [ 'Development Status :: 5 - Production/Stable'
         , 'License :: OSI Approved :: ' + license
