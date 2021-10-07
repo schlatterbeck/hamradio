@@ -1,5 +1,5 @@
-AFU: Ham-Radio scripts
-======================
+Ham-Radio scripts
+=================
 
 :Author: Ralf Schlatterbeck <rsc@runtux.com>
 
