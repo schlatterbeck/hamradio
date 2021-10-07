@@ -36,10 +36,10 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from netrc    import netrc
 from getpass  import getpass
-from afu      import requester
-from afu.adif import ADIF, Native_ADIF_Record
-from afu.lotw import LOTW_Query
-from afu.eqsl import EQSL_Query
+from hamradio      import requester
+from hamradio.adif import ADIF, Native_ADIF_Record
+from hamradio.lotw import LOTW_Query
+from hamradio.eqsl import EQSL_Query
 try :
     from urllib.parse import urlparse, quote_plus, urlencode
 except ImportError:

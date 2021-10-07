@@ -32,7 +32,7 @@ from __future__ import print_function
 import re
 import sys
 from argparse        import ArgumentParser
-from afu             import requester
+from hamradio        import requester
 try :
     from urllib.parse import urlencode
 except ImportError :

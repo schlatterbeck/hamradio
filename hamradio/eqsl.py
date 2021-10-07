@@ -36,8 +36,8 @@ from locale          import setlocale, LC_TIME
 from time            import sleep
 from datetime        import datetime
 from argparse        import ArgumentParser
-from afu             import requester
-from afu.adif        import ADIF
+from hamradio        import requester
+from hamradio.adif   import ADIF
 from bs4             import BeautifulSoup
 try :
     from urllib.parse import urlencode, urljoin

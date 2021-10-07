@@ -33,8 +33,8 @@ import io
 import sys
 from argparse        import ArgumentParser
 from rsclib.pycompat import text_type
-from afu             import requester
-from afu.adif        import ADIF
+from hamradio        import requester
+from hamradio.adif   import ADIF
 try :
     from urllib.parse import urlencode
 except ImportError:

@@ -1,6 +1,6 @@
 include README.rst
 include README.html
-include afu/data/2019_Current_Deleted(3).txt
-include afu/data/cty.dat
-include afu/data/wae-country-list.html
+include hamradio/data/2019_Current_Deleted(3).txt
+include hamradio/data/cty.dat
+include hamradio/data/wae-country-list.html
 

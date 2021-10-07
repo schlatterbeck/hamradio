@@ -1,5 +1,5 @@
 #!/usr/bin/python
 
-from afu import dbimport
+from hamradio import dbimport
 
 dbimport.main ()

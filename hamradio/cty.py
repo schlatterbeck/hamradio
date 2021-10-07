@@ -3,7 +3,7 @@
 import io
 import sys
 import os
-from afu.dxcc import DXCC_File
+from hamradio.dxcc import DXCC_File
 
 # Sources
 # Big CTY list:

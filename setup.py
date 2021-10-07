@@ -21,23 +21,23 @@
 # ****************************************************************************
 
 try :
-    from afu.Version import VERSION
+    from hamradio.Version import VERSION
 except :
     VERSION = None
 from distutils.core import setup, Extension
 
 license     = 'GNU Library or Lesser General Public License (LGPL)'
 setup \
-    ( name             = "afu"
+    ( name             = "hamradio"
     , version          = VERSION
     , description      = "Utilities for Ham radio"
     , license          = license
     , author           = "Ralf Schlatterbeck"
     , author_email     = "rsc@runtux.com"
     , install_requires = ['<rsclib>']
-    , packages         = ['afu']
+    , packages         = ['hamradio']
     , package_data     = dict
-        (afu = ['data/*.txt', 'data/*.dat', 'data/*.html'])
+        (hamradio = ['data/*.txt', 'data/*.dat', 'data/*.html'])
     , platforms        = 'Any'
     , python_requires  = '>=3.6'
     , scripts          = [ 'bin/qso-import'
