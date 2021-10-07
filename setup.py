@@ -34,14 +34,17 @@ setup \
     , license          = license
     , author           = "Ralf Schlatterbeck"
     , author_email     = "rsc@runtux.com"
+    , install_requires = ['<rsclib>']
     , packages         = ['afu']
     , package_data     = dict
         (afu = ['data/*.txt', 'data/*.dat', 'data/*.html'])
     , platforms        = 'Any'
+    , python_requires  = '>=3.6'
     , scripts          = [ 'bin/qso-import'
                          , 'bin/callsign_lookup'
                          , 'bin/qsl-export'
                          ]
+    , url              = 'https://github.com/schlatterbeck/afu'
     , classifiers      =
         [ 'Development Status :: 5 - Production/Stable'
         , 'License :: OSI Approved :: ' + license
@@ -53,5 +56,8 @@ setup \
         , 'Programming Language :: Python :: 3'
         , 'Programming Language :: Python :: 3.5'
         , 'Programming Language :: Python :: 3.6'
+        , 'Programming Language :: Python :: 3.7'
+        , 'Programming Language :: Python :: 3.8'
+        , 'Programming Language :: Python :: 3.9'
         ]
     )

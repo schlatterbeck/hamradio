@@ -1,6 +1,10 @@
 AFU: Ham-Radio scripts
 ======================
 
+:Author: Ralf Schlatterbeck <rsc@runtux.com>
+
+.. |--| unicode:: U+2013   .. en dash
+
 Trivia: The name comes from the German word "Amateurfunk" = Hamradio
 abbreviated AFU for this package.
 
@@ -68,3 +72,11 @@ The qth module implements conversion from GPS coordinates to Maidenhead
 locator. It has a doctest in the Maidenhead_Locator class that should
 give you an idea on how to use it. It does support extended locators
 beyond length 6 used by some VHF groups.
+
+Changes
+-------
+
+Version 0.1: Initial release
+
+Note that this project is quite old |--| I'm using it for myself so far
+and the first release just now should not scare you too much.
