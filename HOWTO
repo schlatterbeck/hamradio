@@ -1,0 +1,49 @@
+This documents how to import QSL data into my QSO logging program
+See README.rst for details.
+
+- Get ADIF log and copy to working file
+  Remove old entries manually
+  Or use cutoff data later
+- For dry-run add -n option
+- Import QSOs into Database
+  qso-import --cutoff-date=2021-01-01 \
+    -a '40m:Sloper (Lindabrunn)' \
+    -a '30m:Sloper (Lindabrunn)' \
+    -c 'OE3RSU/3 Lindabrunn' \
+    -U http://bee.priv.zoo:7070/qso/ \
+    -v \
+    import lindabrunn-import.adi
+- Upload to eQSL
+- IMPORTANT NOTE: Log into eQSL with the correct callsign!!!!!!!!!
+- Note that it's already verbose enough and prints each call imported
+- Import with the correct import-date as eQSL QSL records
+  qso-import --cutoff-date=2021-01-01 \
+    --upload-date=2021-07-12.13:19:18 \
+    -c 'OE3RSU/3 Lindabrunn' \
+    -q eQSL \
+    -U http://bee.priv.zoo:7070/qso/  \
+    import_qsl lindabrunn-import.adi
+
+- Upload to LOTW using "tqsl", usually select immediate upload in GUI
+- Check in LOTW if file has been processed and note date when it is
+  Log in at https://lotw.arrl.org/
+  Click Your Account
+  In sidebar check Your Activity
+- Note that it's already verbose enough and prints each call imported
+- Import with the correct import-date as LOTW QSL records
+  qso-import --cutoff-date=2021-01-01 \
+    --upload-date=2021-07-12.12:30:20 \
+    -c 'OE3RSU/3 Lindabrunn'          \
+    -q LOTW                           \
+    -U http://bee.priv.zoo:7070/qso/  \
+    import_qsl lindabrunn-import.adi
+
+- From time to time check if new qsls have arrived:
+  (Note that this is automagically verbose and prints all imported QSL)
+  qso-import -q LOTW --cutoff-date=2021-01-01 \
+    -c 'OE3RSU/3 Lindabrunn'                  \
+    -U http://bee.priv.zoo:7070/qso/ check_qsl
+- Same for eQSL
+  qso-import -q eQSL --cutoff-date=2021-01-01 \
+    -c 'OE3RSU/3 Lindabrunn'                  \
+    -U http://bee.priv.zoo:7070/qso/ check_qsl
