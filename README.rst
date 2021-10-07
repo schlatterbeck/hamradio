@@ -5,9 +5,6 @@ AFU: Ham-Radio scripts
 
 .. |--| unicode:: U+2013   .. en dash
 
-Trivia: The name comes from the German word "Amateurfunk" = Hamradio
-abbreviated AFU for this package.
-
 Note that the binaries currently installed with the package work only in
 conjunction with my logging database based on Roundup_.
 
