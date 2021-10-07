@@ -34,7 +34,7 @@ setup \
     , license          = license
     , author           = "Ralf Schlatterbeck"
     , author_email     = "rsc@runtux.com"
-    , install_requires = ['<rsclib>']
+    , install_requires = ['<rsclib>', '<requests>', '<beautifulsoup4>']
     , packages         = ['hamradio']
     , package_data     = dict
         (hamradio = ['data/*.txt', 'data/*.dat', 'data/*.html'])
