@@ -823,6 +823,11 @@ class DB_Importer (Log_Mixin) :
             # Add grid if available
             if a.dict.get ('gridsquare') and not qsl ['gridsquare'] :
                 qsl_dict ['gridsquare'] = a.gridsquare
+            # Add rst_sent (= qsl.rst_rcvd) if available
+            # The log (from eqsl at least) if from the perspective of
+            # the qso partner.
+            if a.dict.get ('rst_sent') and not qsl ['rst_rcvd'] :
+                qsl_dict ['rst_rcvd'] = a.rst_sent
             # Add QSL Card from eQSL
             if getattr (self.logbook, 'get_qslcard', 0) and not qsl ['files'] :
                 content = self.logbook.get_qslcard (a, self.args.eqsl_username)
