@@ -23,7 +23,7 @@ and a QSO logger.
 
 The adif module is used to parse ADIF files.
 Basic usage is at the end of the file, it can be called to do a
-roundup-trip of an ADIF file (reading it in and writing it out).
+round-trip of an ADIF file (reading it in and writing it out).
 
 The bandplan module implements a definition of the ham radio bands and
 corresponding frequencies for a country. Currently only Austria is
