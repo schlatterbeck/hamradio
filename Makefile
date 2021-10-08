@@ -25,7 +25,7 @@ all: $(VERSION)
 $(VERSION): $(SRC)
 
 dist: all
-	python setup.py sdist --formats=gztar,zip
+	$(PYTHON) setup.py sdist --formats=gztar,zip
 
 clean:
 	rm -f MANIFEST $(PNAME)/Version.py notes changes default.css    \

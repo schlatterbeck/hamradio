@@ -76,6 +76,8 @@ beyond length 6 used by some VHF groups.
 Changes
 -------
 
+Version 0.2-0.3: Updates to documentation and setup
+
 Version 0.1: Initial release
 
 Note that this project is quite old |--| I'm using it for myself so far
