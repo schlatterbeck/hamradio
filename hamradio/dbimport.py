@@ -30,6 +30,7 @@
 from __future__ import print_function
 
 import io
+import os
 import sys
 import requests
 from argparse import ArgumentParser
@@ -937,6 +938,7 @@ class DB_Importer (Log_Mixin) :
 def main () :
     methods = [x [3:] for x in DB_Importer.__dict__ if x.startswith ('do_')]
     qsl_types = ['LOTW', 'eQSL']
+    default_url = os.environ.get ('WBF_DBURL', 'http://bee.priv.zoo:8080/qso/')
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( "command"
@@ -1037,7 +1039,7 @@ def main () :
     cmd.add_argument \
         ( "-U", "--url"
         , help    = "URL of tracker (without rest path) default: %(default)s"
-        , default = 'http://bee.priv.zoo:8080/qso/'
+        , default = default_url
         )
     cmd.add_argument \
         ( "-u", "--username"
