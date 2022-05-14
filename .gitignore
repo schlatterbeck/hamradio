@@ -23,3 +23,6 @@ dist
 MANIFEST
 announce_pypi
 upload_pypi
+ReleaseNotes.txt
+changes
+notes

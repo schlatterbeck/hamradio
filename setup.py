@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (C) 2019-21 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-22 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -31,7 +31,13 @@ try :
     from hamradio.Version import VERSION
 except :
     VERSION = None
+from warnings       import filterwarnings
 from distutils.core import setup, Extension
+
+filterwarnings \
+    ( "ignore"
+    , "Unknown distribution option: 'install_requires'"
+    )
 
 description = []
 with open ('README.rst') as f :
