@@ -954,6 +954,8 @@ def main () :
         , '17m:Magnetic Loop D=88cm'
         , '40m:Magnetic Loop D=3.5m'
         , '15m:Magnetic Loop D=57cm'
+        , '12m:Magnetic Loop D=57cm'
+        , '10m:Magnetic Loop D=57cm'
         ]
     cmd.add_argument \
         ( "-a", "--antenna"
