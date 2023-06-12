@@ -752,7 +752,7 @@ class DB_Importer (Log_Mixin) :
             elif cmpd and qsl ['date_recv'][:10] != rdate [:10] :
                 # We only compare the date, not the time
                 # (time is always empty in LOTW)
-                self.notice \
+                self.info \
                     ( "QSL receive time not matching: %s %s %s vs %s"
                     % (date, a.call, qsl ['date_sent'], a.get_qsl_rdate ())
                     )
