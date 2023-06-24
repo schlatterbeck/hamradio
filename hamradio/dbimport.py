@@ -939,6 +939,21 @@ def main () :
     methods = [x [3:] for x in DB_Importer.__dict__ if x.startswith ('do_')]
     qsl_types = ['LOTW', 'eQSL']
     default_url = os.environ.get ('WBF_DBURL', 'http://bee.priv.zoo:8080/qso/')
+    antenna_defaults = \
+        [ '20m:Magnetic Loop D=88cm'
+        , '17m:Magnetic Loop D=88cm'
+        , '40m:Magnetic Loop D=3.5m'
+        , '30m:Magnetic Loop D=1.9m'
+        , '15m:Magnetic Loop D=57cm'
+        , '12m:Magnetic Loop D=57cm'
+        , '10m:Magnetic Loop D=57cm'
+        ]
+    ant = os.environ.get ('WBF_ANTENNA', '')
+    if ant:
+        ant = [x.strip () for x in ant.split (',', 1)]
+        # Since we're appending to the end these will overwrite existing
+        # defaults
+        antenna_defaults.extend (ant)
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( "command"
@@ -949,14 +964,6 @@ def main () :
         , help    = "ADIF file to import"
         , nargs   = '?'
         )
-    antenna_defaults = \
-        [ '20m:Magnetic Loop D=88cm'
-        , '17m:Magnetic Loop D=88cm'
-        , '40m:Magnetic Loop D=3.5m'
-        , '15m:Magnetic Loop D=57cm'
-        , '12m:Magnetic Loop D=57cm'
-        , '10m:Magnetic Loop D=57cm'
-        ]
     cmd.add_argument \
         ( "-a", "--antenna"
         , help    = "Antenna to use for band, colon separated "
