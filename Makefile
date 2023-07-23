@@ -24,13 +24,11 @@ all: $(VERSION)
 
 $(VERSION): $(SRC)
 
-dist: all
-	$(PYTHON) setup.py sdist --formats=gztar,zip
-
 clean:
 	rm -f MANIFEST $(PNAME)/Version.py notes changes default.css    \
 	      README.html README.aux README.dvi README.log README.out \
 	      README.tex announce_pypi
-	rm -rf dist build upload upload_homepage ReleaseNotes.txt
+	rm -rf dist build upload upload_homepage ReleaseNotes.txt \
+               hamradio.egg-info
 
 include $(RELEASETOOLS)/Makefile-pyrelease

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (C) 2019-22 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-23 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -59,10 +59,13 @@ setup \
         (hamradio = ['data/*.txt', 'data/*.dat', 'data/*.html'])
     , platforms        = 'Any'
     , python_requires  = '>=3.6'
-    , scripts          = [ 'bin/qso-import'
-                         , 'bin/callsign_lookup'
-                         , 'bin/qsl-export'
-                         ]
+    , entry_points     = dict
+        ( console_scripts =
+            [ 'callsign_lookup=hamradio.dxcc:main'
+            , 'qsl-export=hamradio.qslcard:main'
+            , 'qso-import=hamradio.dbimport:main'
+            ]
+        )
     , url              = 'https://github.com/schlatterbeck/hamradio'
     , classifiers      =
         [ 'Development Status :: 5 - Production/Stable'
@@ -70,13 +73,10 @@ setup \
         , 'Operating System :: OS Independent'
         , 'Programming Language :: Python'
         , 'Intended Audience :: Developers'
-        , 'Programming Language :: Python :: 2'
-        , 'Programming Language :: Python :: 2.7'
-        , 'Programming Language :: Python :: 3'
-        , 'Programming Language :: Python :: 3.5'
-        , 'Programming Language :: Python :: 3.6'
         , 'Programming Language :: Python :: 3.7'
         , 'Programming Language :: Python :: 3.8'
         , 'Programming Language :: Python :: 3.9'
+        , 'Programming Language :: Python :: 3.10'
+        , 'Programming Language :: Python :: 3.11'
         ]
     )
