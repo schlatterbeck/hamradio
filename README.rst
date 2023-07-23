@@ -76,6 +76,8 @@ beyond length 6 used by some VHF groups.
 Changes
 -------
 
+Version 0.5: Use pyproject.toml not setup.py
+
 Version 0.4: Fix setup.py install_requires
 
 Version 0.2-0.3: Updates to documentation and setup
