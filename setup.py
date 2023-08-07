@@ -27,27 +27,18 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ****************************************************************************
 
-try :
-    from hamradio.Version import VERSION
-except :
-    VERSION = None
-from warnings       import filterwarnings
-from distutils.core import setup, Extension
+import sys
+from setuptools import setup
+sys.path.insert (1, '.')
+from hamradio import __version__
 
-filterwarnings \
-    ( "ignore"
-    , "Unknown distribution option: 'install_requires'"
-    )
-
-description = []
-with open ('README.rst') as f :
-    for line in f :
-            description.append (line)
+with open ('README.rst') as f:
+    description = f.read ()
 
 license     = 'BSD License'
 setup \
     ( name             = "hamradio"
-    , version          = VERSION
+    , version          = __version__
     , description      = "Utilities for Ham radio"
     , long_description = ''.join (description)
     , license          = license

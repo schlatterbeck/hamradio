@@ -63,7 +63,7 @@ qsl-export      = "hamradio.qslcard:main"
 qso-import      = "hamradio.dbimport:main"
 
 [tool.setuptools.dynamic]
-version = {attr = "hamradio.Version.VERSION"}
+version = {attr = "hamradio.__version__"}
 
 # Include package data, see 'data' entries in MANIFEST.IN
 [tool.setuptools.packages.find]
