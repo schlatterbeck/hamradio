@@ -155,7 +155,8 @@ class QSL_Exporter (requester.Requester):
                 )
             lastcall  = qsl ['qso.call']
             lastowner = qsl ['qso.owner.name']
-        r.append (r'\end{qslcard}')
+        if lastcall:
+            r.append (r'\end{qslcard}')
         r.append (r'\end{document}')
         return '\n'.join (r)
     # end def as_tex
