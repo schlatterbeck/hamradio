@@ -33,12 +33,12 @@ import re
 import sys
 from argparse        import ArgumentParser
 from hamradio        import requester
-try :
+try:
     from urllib.parse import urlencode
-except ImportError :
+except ImportError:
     from urllib import urlencode
 
-class QSL_Exporter (requester.Requester) :
+class QSL_Exporter (requester.Requester):
 
     replacements = dict \
         (( ('<', '$<$')
@@ -48,16 +48,16 @@ class QSL_Exporter (requester.Requester) :
     rep = dict ((re.escape (k), v) for k, v in replacements.items ())
     pattern = re.compile ('|'.join (rep.keys ()))
 
-    def __init__ (self, args) :
+    def __init__ (self, args):
         self.args = args
         self.__super.__init__ (args.url, args.username, args.password)
         self.set_basic_auth ()
-        if not self.url.endswith ('/') :
+        if not self.url.endswith ('/'):
             self.url += '/'
         self.url += 'rest/data/'
     # end def __init__
 
-    def qsl_iter (self) :
+    def qsl_iter (self):
         """ Iterate over all non-sent paper QSL
         """
         bureau = self.get ('qsl_type?name:=%s' % self.args.qsl_type)
@@ -77,40 +77,40 @@ class QSL_Exporter (requester.Requester) :
         d ['@fields'] = ','.join (fields)
         d ['@sort'] = 'qso.owner.name,qso.call,qso.qso_start'
         r = self.get ('qsl?' + urlencode (d)) ['data']['collection']
-        for k in r :
+        for k in r:
             yield (k)
     # end def qsl_iter
 
-    def quoted (self, key) :
+    def quoted (self, key):
         v = self.qsl [key]
-        if isinstance (v, int) :
+        if isinstance (v, int):
             v = str (v)
-        if isinstance (v, type (None)) :
+        if isinstance (v, type (None)):
             print ("Warning: Got None object for key=%s" % key, file=sys.stderr)
             return ''
         return self.pattern.sub \
             (lambda m: self.rep [re.escape (m.group (0))], v)
     # end def quoted
 
-    def as_tex (self) :
+    def as_tex (self):
         r = []
         r.append (r'\documentclass[12pt,german]{qsl}')
         r.append (r'\begin{document}')
         lastcall  = None
         lastowner = None
-        for qsl in self.qsl_iter () :
+        for qsl in self.qsl_iter ():
             self.qsl = qsl
-            if qsl ['qso.swl'] :
+            if qsl ['qso.swl']:
                 qslfor = self.get ('qso/%s' % qsl ['qso.swl']['id'])
                 qslfor = qslfor ['data']['attributes']
             if  (  lastcall  != qsl ['qso.call']
                 or lastowner != qsl ['qso.owner.name']
-                ) :
-                if lastcall :
+                ):
+                if lastcall:
                     r.append (r'\end{qslcard}')
-                if qsl ['qso.owner.dxcc_entity.shortname'] :
+                if qsl ['qso.owner.dxcc_entity.shortname']:
                     country = self.quoted ('qso.owner.dxcc_entity.shortname')
-                else :
+                else:
                     country = self.quoted ('qso.owner.dxcc_entity.name')
                 s = ( (r'\begin{qslcard}{' + ','.join (['%s=%s'] * 9))
                     % ( 'ocall',    self.quoted ('qso.owner.call')
@@ -124,24 +124,24 @@ class QSL_Exporter (requester.Requester) :
                       , 'country',  country
                       )
                     )
-                if qsl ['qso.owner.iota'] :
+                if qsl ['qso.owner.iota']:
                     s += ',iota=%s' % self.quoted ('qso.owner.iota')
-                if qsl ['qso.qsl_via'] :
+                if qsl ['qso.qsl_via']:
                     s += ',via=%s' % self.quoted ('qso.qsl_via')
-                if qsl ['qso.remarks'] :
+                if qsl ['qso.remarks']:
                     s += ',remarks=%s' % self.quoted ('qso.remarks')
-                if qsl ['qso.swl'] :
+                if qsl ['qso.swl']:
                     s += ',swl=y'
-                if not qsl ['date_recv'] :
+                if not qsl ['date_recv']:
                     s += ',wantqsl=y'
                 r.append (s + '}')
             dt, tstart = qsl ['qso.qso_start'].split ('.')
             tend       = qsl ['qso.qso_end'].split ('.')[-1]
             # Limit to Minutes
             tstart     = ':'.join (tstart.split (':')[:2])
-            if qsl ['qso.swl'] :
+            if qsl ['qso.swl']:
                 rst_or_call = qslfor ['call']
-            else :
+            else:
                 rst_or_call = self.quoted ('qso.rst_sent')
             r.append \
                 ( r'\qso' + ('{%s}' * 7)
@@ -160,24 +160,24 @@ class QSL_Exporter (requester.Requester) :
         return '\n'.join (r)
     # end def as_tex
 
-    def set_sent_date (self) :
-        for qsl in self.qsl_iter () :
+    def set_sent_date (self):
+        for qsl in self.qsl_iter ():
             # Get the qsl again to get etag
             q = self.get ('qsl/%s' % qsl ['id'])
             etag = q ['data']['@etag']
             d = dict (date_sent = self.args.sent_date)
-            if not self.args.dry_run :
+            if not self.args.dry_run:
                 self.put ('qsl/%s' % qsl ['id'], json = d, etag = etag)
-            if self.args.verbose :
+            if self.args.verbose:
                 dry = ''
-                if self.args.dry_run :
+                if self.args.dry_run:
                     dry = ' (dry run)'
                 print ('Set %s%s' % (d, dry), file = sys.stderr)
     # end def set_sent_date
 
 # end class QSL_Exporter
 
-def main () :
+def main ():
     cmd  = ArgumentParser ()
     cmd.add_argument \
         ( "-d", "--sent-date", "--send-date"
@@ -215,8 +215,8 @@ def main () :
     args = cmd.parse_args ()
     e    = QSL_Exporter (args)
     print (e.as_tex ())
-    if args.sent_date :
+    if args.sent_date:
         e.set_sent_date ()
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()
