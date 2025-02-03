@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright (C) 2019-24 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-25 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -43,8 +43,6 @@ class Requester (autosuper) :
     def __init__ (self, url, username, password = None, **kw) :
         self.session     = requests.session ()
         self.url         = url
-        if not self.url.endswith ('/'):
-            self.url += '/'
         self.username    = username
         self.password    = password
         self.headers     = dict (Origin = url.rstrip ('/'), Referer = url)
@@ -57,11 +55,12 @@ class Requester (autosuper) :
     # end def __init__
 
     def get (self, s, as_text=False, as_result = False, **kw) :
-        r = self.session.get (self.url + s, headers = self.headers, **kw)
+        u = self.url + s
+        r = self.session.get (u, headers = self.headers, **kw)
         if not (200 <= r.status_code <= 299) :
             raise RuntimeError \
-                ( 'Invalid get result: %s: %s\n    %s'
-                % (r.status_code, r.reason, r.text)
+                ( 'Invalid get result: %s: %s for %s\n    %s'
+                % (r.status_code, r.reason, u, r.text)
                 )
         if as_result :
             return r
