@@ -787,7 +787,7 @@ class DB_Importer (Log_Mixin):
                             # Update dxcc in any case
                             d [fields [k]] = val
                         self.notice \
-                            ("QSO %s %s Field %s differs: %s vs %s"
+                            ("QSO %s %s Field %s differs: %s (old) vs %s (new)"
                             % (date, a.call, k, f, v)
                             )
             # Append QSL message if any, only when qsl was first seen
