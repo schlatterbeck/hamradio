@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (C) 2019 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-25 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -29,7 +29,7 @@
 
 from rsclib.iter_recipes import grouper
 
-class Maidenhead_Locator (object) :
+class Maidenhead_Locator (object):
     """ Represent a location with LAT/LON as Maidenhead Locator
     >>> cls = Maidenhead_Locator
     >>> loc = cls (48.208525, 16.373146)
@@ -65,46 +65,46 @@ class Maidenhead_Locator (object) :
     'JN88MM00AA00AA'
     """
 
-    def __init__ (self, lat, lon, lat_m = 0, lon_m = 0, lat_s = 0, lon_s = 0) :
+    def __init__ (self, lat, lon, lat_m = 0, lon_m = 0, lat_s = 0, lon_s = 0):
         self.lat = lat
         self.lon = lon
-        if lat_m :
+        if lat_m:
             self.lat += lat_m / 60.
-        if lon_m :
+        if lon_m:
             self.lon += lon_m / 60.
-        if lat_s :
+        if lat_s:
             self.lat += lat_s / 3600.
-        if lon_s :
+        if lon_s:
             self.lon += lon_s / 3600.
     # end def __init__
 
-    def as_locator (self, precision = 3) :
+    def as_locator (self, precision = 3):
         """ Output position as precision maidenhead pairs, e.g., with
             precision=3 we get JN88EF for Stefansdom Wien.
         """
         loc = []
         pos = ((self.lon + 180.) / 2., self.lat + 90.)
         div = 10
-        for k in range (precision) :
+        for k in range (precision):
             np = []
-            for p in pos :
+            for p in pos:
                 q, r = divmod (p, div)
-                if k % 2 :
+                if k % 2:
                     loc.append (str (int (q)))
                     np.append (r * 10)
-                else :
+                else:
                     loc.append (chr (ord ('A') + int (q)))
                     np.append (r * 24)
             pos = np
-            if k % 2 :
+            if k % 2:
                 div = 10
-            else :
+            else:
                 div = 24
         return ''.join (loc)
     # end def as_locator
 
     @classmethod
-    def from_locator (cls, loc, round_vhf = True) :
+    def from_locator (cls, loc, round_vhf = True):
         """ See VHF Handbook V 8.5
             https://www.iaru-r1.org/index.php/downloads/func-startdown/1018/
             for the rounding constant (empirically derived here).
@@ -113,21 +113,21 @@ class Maidenhead_Locator (object) :
             respectively. This is slightly lower than the middle.
         """
         rounding_constant = 0.47699
-        if not round_vhf :
+        if not round_vhf:
             rounding_constant = .5
         pos = [0.0, 0.0]
         mul = 10
-        for n, l in enumerate (grouper (2, loc)) :
+        for n, l in enumerate (grouper (2, loc)):
             npos = []
-            for idx, k in enumerate (l) :
-                if not k.isdigit () :
+            for idx, k in enumerate (l):
+                if not k.isdigit ():
                     k = ord (k.upper ()) - ord ('A')
-                else :
+                else:
                     k = int (k)
                 pos [idx] += k * mul
-            if n % 2 :
+            if n % 2:
                 newmul = 24
-            else :
+            else:
                 newmul = 10
             mul = mul / newmul
         pos [0] += mul * newmul * rounding_constant
@@ -135,27 +135,27 @@ class Maidenhead_Locator (object) :
         return cls (lon = pos [0] * 2 - 180, lat = pos [1] - 90)
     # end def from_locator
 
-    def _format (self, value, suffices) :
+    def _format (self, value, suffices):
         r      = []
         suffix = suffices [value > 0]
         value  = abs (value)
         r.append (int (value))
         r.append ('°')
-        for s in ("'", '"') :
+        for s in ("'", '"'):
             value -= int (value)
             value *= 60
-            if s == '"' :
+            if s == '"':
                 r.append ("%2.2f" % value)
-            else :
+            else:
                 r.append (int (value))
             r.append (s)
         r.append (suffix)
         return ''.join (str (x) for x in r)
     # end def _format
 
-    def __str__ (self) :
+    def __str__ (self):
         r = []
-        for v, s in ((self.lat, 'SN'), (self.lon, 'WE')) :
+        for v, s in ((self.lat, 'SN'), (self.lon, 'WE')):
             r.append (self._format (v, s))
         return ' '.join (r)
     # end def __str__

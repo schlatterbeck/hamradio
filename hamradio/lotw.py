@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright (C) 2019 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-25 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -35,22 +35,22 @@ from argparse        import ArgumentParser
 from rsclib.pycompat import text_type
 from hamradio        import requester
 from hamradio.adif   import ADIF
-try :
+try:
     from urllib.parse import urlencode
 except ImportError:
     from urllib   import quote as quote_plus
     from urllib   import urlencode
 
-class LOTW_Query (requester.Requester) :
+class LOTW_Query (requester.Requester):
 
     url = 'https://lotw.arrl.org/lotwuser/lotwreport.adi'
     date_format = '%Y-%m-%d.%H:%M:%S'
 
-    def __init__ (self, username, password = None) :
+    def __init__ (self, username, password = None):
         self.__super.__init__ (self.url, username, password)
     # end def __init__
 
-    def get_qso (self, since = None, **args) :
+    def get_qso (self, since = None, **args):
         """ Get QSOs for the given parameters.
             Parameters are automagically prefixed with 'qso_'
             Allowed values according to
@@ -62,21 +62,21 @@ class LOTW_Query (requester.Requester) :
             We directly return an ADIF object.
         """
         d = {}
-        for a in args :
+        for a in args:
             d ['qso_' + a] = args [a]
         d ['login']          = self.username
         d ['password']       = self.get_pw ()
         d ['qso_qsl']        = 'no'
         d ['qso_query']      = 1
-        if since :
+        if since:
             d ['qso_qsorxsince'] = since.strftime ('%Y-%m-%d')
         t = self.get ('?' + urlencode (d), as_text = True)
-        with io.StringIO (t) as f :
+        with io.StringIO (t) as f:
             adif = ADIF (f)
         return adif
     # end def get_qso
 
-    def get_qsl (self, since = None, **args) :
+    def get_qsl (self, since = None, **args):
         """ Get QSLs for the given parameters.
             Parameters are automagically prefixed with 'qso_'
             according the the lotw API.
@@ -89,17 +89,17 @@ class LOTW_Query (requester.Requester) :
             We directly return an ADIF object.
         """
         d = {}
-        for a in args :
+        for a in args:
             d ['qso_' + a] = args [a]
         d ['login']          = self.username
         d ['password']       = self.get_pw ()
         d ['qso_qsl']        = 'yes'
         d ['qso_query']      = 1
-        if since :
+        if since:
             d ['qso_qslsince'] = since.strftime ('%Y-%m-%d')
         d ['qso_qsldetail']  = 'yes'
         t = self.get ('?' + urlencode (d), as_text = True)
-        with io.StringIO (t) as f :
+        with io.StringIO (t) as f:
             adif = ADIF (f)
         return adif
     # end def get_qsl

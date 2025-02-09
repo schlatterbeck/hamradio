@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (C) 2021 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2021-25 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -146,7 +146,7 @@ darc_waedc_dxcc = dict \
     ,  ('Vienna Intl Ctr',          'Austria')  # *4U1V
     ))
 
-class CTY :
+class CTY:
     """ Parse Country information in cty.dat format
         Docs: https://www.country-files.com/cty-dat-format/
     """
@@ -157,80 +157,80 @@ class CTY :
     # following suffix markup. We ignore those currently.
     suffixes = '()', '[]', '<>', '{}', '~~'
 
-    def __init__ (self, filename) :
+    def __init__ (self, filename):
         self.exact_callsign = {}
         self.prefix         = {}
         self.prf_max        = 0
         self.countries      = {}
         country = None
-        with io.open (filename, 'r') as f :
-            for line in f :
+        with io.open (filename, 'r') as f:
+            for line in f:
                 line = line.strip ()
-                if country is None :
+                if country is None:
                     assert line.endswith (':')
                     line = line.rstrip (':')
                     l = [x.lstrip () for x in line.split (':')]
                     country, cq, itu, ctycode, lat, lon, gmtoff, pfx = l
                     self.countries [country] = True
                     end = False
-                else :
+                else:
                     # Docs say 'should' contain comma at the end on continuation
-                    if line.endswith (';') :
+                    if line.endswith (';'):
                         line = line.rstrip (';')
                         end = True
                     line = line.rstrip (',')
                     pfxs = line.split (',')
-                    for pfx in pfxs :
+                    for pfx in pfxs:
                         # discard any additional info at end of prefix
-                        for s in self.suffixes :
+                        for s in self.suffixes:
                             s = s [0]
                             pfx = pfx.split (s, 1) [0]
-                        if pfx.startswith ('=') :
+                        if pfx.startswith ('='):
                             pfx = pfx.lstrip ('=')
-                            if pfx not in self.exact_callsign :
+                            if pfx not in self.exact_callsign:
                                 self.exact_callsign [pfx] = country
-                        else :
+                        else:
                             l = len (pfx)
-                            if l > self.prf_max :
+                            if l > self.prf_max:
                                 self.prf_max = l
-                            if pfx not in self.prefix :
+                            if pfx not in self.prefix:
                                 self.prefix [pfx] = country
-                    if end :
+                    if end:
                         country = None
                         end     = False
     # end def __init__
 
-    def callsign_lookup (self, callsign) :
-        if callsign in self.exact_callsign :
+    def callsign_lookup (self, callsign):
+        if callsign in self.exact_callsign:
             return self.exact_callsign [callsign]
-        for n in reversed (range (self.prf_max)) :
+        for n in reversed (range (self.prf_max)):
             pfx = callsign [:n+1]
-            if pfx in self.prefix :
+            if pfx in self.prefix:
                 return self.prefix [pfx]
     # end def callsign_lookup
 
 # end class CTY
 
-class CTY_DXCC :
+class CTY_DXCC:
     """ Matching of dxcc entities via CTY
         Note that since CTY contains more calls we need a mapping.
         Also the names in CTY are not the same as in DXCC.
     """
 
-    def __init__ (self) :
+    def __init__ (self):
         dxcc = DXCC_File ()
         dxcc.parse ()
         self.dxcc = dxcc.by_type ['CURRENT']
         self.cty  = CTY (CTY.data)
     # end def __init__
 
-    def callsign_lookup (self, call) :
+    def callsign_lookup (self, call):
         """ Look up a DXCC entity of a callsign via CTY
             For compatibility with the DXCC lookup which can contain
             multiple matches we return a (one-element) list.
         """
         name = self.cty.callsign_lookup (call)
-        if name is None :
+        if name is None:
             return []
         name = darc_waedc_dxcc.get (name, name)
         name = cty_to_dxcc.get     (name, name)
@@ -239,7 +239,7 @@ class CTY_DXCC :
 
 # end class CTY_DXCC
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     dxcc = DXCC_File ()
     dxcc.parse ()
     dxcc = dxcc.by_type ['CURRENT']
@@ -247,13 +247,13 @@ if __name__ == '__main__' :
     csl = [ 'GM0XXX', 'GM0HZI', 'GM5BDX', 'GG7XXX', 'MM0CPZ', '2I0VIR'
           , '2E0INN', 'RK4PR', 'RK6BCP', 'R4AEK', '9A4ZM'
           ]
-    if len (sys.argv) > 1 :
+    if len (sys.argv) > 1:
         csl = sys.argv [1:]
-    for cs in csl :
+    for cs in csl:
         print ('%s:' % cs, cty.callsign_lookup (cs))
-#    for c in sorted (cty.countries) :
-#        if c not in dxcc.by_name :
+#    for c in sorted (cty.countries):
+#        if c not in dxcc.by_name:
 #            print ('No dxcc country: %s' % c)
-#    for c in sorted (dxcc.by_name) :
-#        if c not in cty.countries :
+#    for c in sorted (dxcc.by_name):
+#        if c not in cty.countries:
 ##            print ('DXCC country not found: %s' % c)

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (C) 2021 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2021-25 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -30,66 +30,66 @@
 import sys
 from bisect import bisect_right
 
-class Band :
+class Band:
 
-    def __init__ (self, bandplan, name, f_start, f_end) :
+    def __init__ (self, bandplan, name, f_start, f_end):
         self.name    = name
         self.f_start = f_start
         self.f_end   = f_end
         self.plan    = bandplan
     # end def __init__
 
-    def __str__ (self) :
-        if self.f_start > 1e9 :
+    def __str__ (self):
+        if self.f_start > 1e9:
             range = '%.3f GHz-%.3f GHz' % (self.f_start / 1e9, self.f_end / 1e9)
-        elif self.f_start > 1e6 :
+        elif self.f_start > 1e6:
             range = '%.3f MHz-%.3f MHz' % (self.f_start / 1e6, self.f_end / 1e6)
-        elif self.f_start > 1e3 :
+        elif self.f_start > 1e3:
             range = '%.3f kHz-%.3f kHz' % (self.f_start / 1e3, self.f_end / 1e3)
-        else :
+        else:
             range = '%.3f Hz-%.3f Hz' % (self.f_start, self.f_end)
         return 'Band %s %s' % (self.name, range)
     # end def __str__
     __repr__ = __str__
 
-    def __lt__ (self, other) :
+    def __lt__ (self, other):
         return self.f_start < other.f_start
     # end def __lt__
 
 # end class Band
 
-class Overlap_Error (ValueError) :
+class Overlap_Error (ValueError):
     """ This is raised if an inserted band overlaps an existing one
     """
     pass
 
-class Bandplan :
+class Bandplan:
     """ Keep track of a set of Band objects.
         These typically constitute a national band plan.
     """
 
-    def __init__ (self) :
+    def __init__ (self):
         """ This is kept sorted for a little faster lookup
         """
         self.bands = []
     # end def __init__
 
-    def add_band (self, band) :
+    def add_band (self, band):
         idx = bisect_right (self.bands, band)
         l   = len (self.bands)
-        if idx > 0 and idx < l and self.bands [idx].end > band.start :
+        if idx > 0 and idx < l and self.bands [idx].end > band.start:
             raise Overlap_Error \
                 ('New band %s overlaps existing %s' % (band, self.bands [idx]))
         self.bands.insert (idx, band)
     # end def add_band
 
-    def lookup (self, frq) :
+    def lookup (self, frq):
         b   = Band (None, 'dummy', frq, frq)
         idx = bisect_right (self.bands, b) - 1
-        if idx < 0 :
+        if idx < 0:
             return
         entry = self.bands [idx]
-        if idx and entry.f_start <= frq <= entry.f_end :
+        if idx and entry.f_start <= frq <= entry.f_end:
             return entry
     # end def
 
@@ -118,8 +118,8 @@ bpa.add_band (Band (bpa, '70cm',    430.0e6,   440.0e6))
 
 __all__ = ['bandplan_austria', 'Band', 'Bandplan', 'Overlap_Error']
 
-if __name__ == '__main__' :
-    #for b in bandplan_austria.bands :
+if __name__ == '__main__':
+    #for b in bandplan_austria.bands:
     #    print (b)
     band = bandplan_austria.lookup (float (sys.argv [1]))
     print (band)

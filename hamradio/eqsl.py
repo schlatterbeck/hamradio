@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright (C) 2019-21 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2019-25 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -39,14 +39,14 @@ from argparse        import ArgumentParser
 from hamradio        import requester
 from hamradio.adif   import ADIF
 from bs4             import BeautifulSoup
-try :
+try:
     from urllib.parse import urlencode, urljoin
 except ImportError:
     from urllib   import quote as quote_plus
     from urllib   import urlencode
     from urlparse import urljoin
 
-class EQSL_Query (requester.Requester) :
+class EQSL_Query (requester.Requester):
 
     site            = 'https://www.eqsl.cc/'
     base_url        = site + 'qslcard/'
@@ -59,33 +59,33 @@ class EQSL_Query (requester.Requester) :
 
     date_format = '%Y-%m-%d.%H:%M:%S'
 
-    def __init__ (self, nickname, username, password = None) :
+    def __init__ (self, nickname, username, password = None):
         self.nickname = nickname
         self.__super.__init__ \
             (self.import_url, username, password, relax_username_check = True)
     # end def __init__
 
-    def _get_adif (self, linkpage, type = 'Outbox') :
-        if 'Your ADIF log file has been built' not in linkpage :
+    def _get_adif (self, linkpage, type = 'Outbox'):
+        if 'Your ADIF log file has been built' not in linkpage:
             raise ValueError ("Error getting %s:\n%s" % (type, linkpage))
         soup = BeautifulSoup (linkpage, 'html.parser')
-        for a in soup.find_all ('a') :
+        for a in soup.find_all ('a'):
             href = a.get ('href')
-            if 'downloaded' not in href :
+            if 'downloaded' not in href:
                 continue
-            if not href.endswith ('.adi') :
+            if not href.endswith ('.adi'):
                 continue
             break
-        else :
+        else:
             raise ValueError ("Error getting %s: ADIF url not found" % type)
         self.url = urljoin (self.base_url, href)
         t = self.get ('', as_text = True)
-        with io.StringIO (t) as f :
+        with io.StringIO (t) as f:
             adif = ADIF (f)
         return adif
     # end def _get_adif
 
-    def get_qso (self, **kw) :
+    def get_qso (self, **kw):
         """ Get whole Outbox as ADIF
             'since' and other parameters are ignored, currently eQSL
             can't limit the downloaded QSOs
@@ -99,7 +99,7 @@ class EQSL_Query (requester.Requester) :
         return self._get_adif (t)
     # end def get_qso
 
-    def get_qsl (self, since = '', archived = None, **kw) :
+    def get_qsl (self, since = '', archived = None, **kw):
         """ Get Inbox as ADIF
             'since' is a datetime instance
         """
@@ -109,16 +109,16 @@ class EQSL_Query (requester.Requester) :
         d ['Password']      = self.get_pw ()
         d ['QTHNickname']   = self.nickname
         d ['ConfirmedOnly'] = 'yes'
-        if since :
+        if since:
             since = since.strftime ('%Y%m%d%H%M')
             d ['RcvdSince'] = since
-        if archived is not None :
+        if archived is not None:
             d ['Archive']   = int (bool (archived))
         t = self.get ('?' + urlencode (d), as_text = True)
         return self._get_adif (t, 'Inbox')
     # end def get_qsl
 
-    def get_qslcard (self, rec, own_call) :
+    def get_qslcard (self, rec, own_call):
         self.url = self.base_url
         d = dict \
             ( Username     = self.username
@@ -138,21 +138,21 @@ class EQSL_Query (requester.Requester) :
         soup = BeautifulSoup (t, 'html.parser')
         self.url = self.site.rstrip ('/')
         img = soup.find ('img')
-        if img :
+        if img:
             content = self.get (img.get ('src'), as_result = True).content
             return content
-        else :
-            if 'ERROR' in t :
-                for line in t.split ('\n') :
+        else:
+            if 'ERROR' in t:
+                for line in t.split ('\n'):
                     line = line.strip ()
-                    if line.startswith ('ERROR') :
+                    if line.startswith ('ERROR'):
                         print (line)
                         break
-            else :
+            else:
                 print (t)
     # end def get_qslcard
 
-    def get_qslcard_deprecated (self, rec, own_call) :
+    def get_qslcard_deprecated (self, rec, own_call):
         """ Get QSL card for a single ADIF record
             This currently seems to retrieve the background image and
             the QSL confirmation but not the text of the callsign, name
@@ -160,7 +160,7 @@ class EQSL_Query (requester.Requester) :
             So this would need more work, but get_qslcard is the correct
             way to go.
         """
-        if not self.cookies :
+        if not self.cookies:
             self.login ()
         date = rec.qso_date
         date = '-'.join ((date [:4], date [4:6], date [6:8]))
@@ -175,12 +175,12 @@ class EQSL_Query (requester.Requester) :
         t = self.get ('?' + urlencode (d), as_text = True)
         soup = BeautifulSoup (t, 'html.parser')
         self.url = self.site.rstrip ('/')
-        for img in soup.find_all ('img') :
+        for img in soup.find_all ('img'):
             content = self.get (img.get ('src'), as_result = True).content
             return content
     # end def get_qslcard_deprecated
 
-    def last_upload (self) :
+    def last_upload (self):
         self.url = self.last_upload_url
         d = {}
         d ['UserName']      = self.username
@@ -193,22 +193,22 @@ class EQSL_Query (requester.Requester) :
         soup = BeautifulSoup (t, 'html.parser')
         body = soup.find ('body').get_text ()
         text = 'Your last ADIF upload was'
-        for line in body.split ('\n') :
+        for line in body.split ('\n'):
             line = line.strip ()
-            if line.startswith (text) :
+            if line.startswith (text):
                 l  = line [len (text) + 1:]
-                if not l.endswith ('M UTC') :
+                if not l.endswith ('M UTC'):
                     raise ValueError ('Invalid timestamp format encountered')
                 l = l [:-7]
                 dt = datetime.strptime (l, fmt)
                 break
-        else :
+        else:
             raise ValueError ('Did not find Timestamp in page:\n%s' % body)
         setlocale (LC_TIME, oldloc)
         return dt
     # end def last_upload
 
-    def login (self) :
+    def login (self):
         self.url = self.login_url
         # Build the real login request
         d = dict (Callsign = self.username, EnteredPassword = self.get_pw ())
@@ -226,10 +226,10 @@ class EQSL_Query (requester.Requester) :
 
 # end class EQSL_Query
 
-def main () :
+def main ():
     e = EQSL_Query (sys.argv [1], sys.argv [2])
     print (e.last_upload ().strftime ('%Y-%m-%d.%H:%M:%S'))
     #print (e.get_qso ())
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
     main ()
